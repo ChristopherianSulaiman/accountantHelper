@@ -11,56 +11,154 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   IconButton,
+  CircularProgress,
+  Alert,
+  Collapse,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { format, parse } from 'date-fns';
 
-const Invoices = () => {
-  const invoices = [
-    {
-      id: 'INV-001',
-      customer: 'Acme Corp',
-      date: '2024-03-20',
-      dueDate: '2024-04-20',
-      amount: 1500,
-      status: 'paid',
-    },
-    {
-      id: 'INV-002',
-      customer: 'Tech Solutions',
-      date: '2024-03-19',
-      dueDate: '2024-04-19',
-      amount: 2500,
-      status: 'pending',
-    },
-    {
-      id: 'INV-003',
-      customer: 'Global Services',
-      date: '2024-03-18',
-      dueDate: '2024-04-18',
-      amount: 3500,
-      status: 'overdue',
-    },
-  ];
+const InvoiceRow = ({ invoice }) => {
+  const [open, setOpen] = useState(false);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'paid':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'overdue':
-        return 'error';
-      default:
-        return 'default';
+  const formatDate = (dateString) => {
+    try {
+      const dateOnly = dateString.split('T')[0];
+      return format(parse(dateOnly, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
     }
   };
+
+  const totalAmount = invoice.descriptions?.reduce((sum, desc) => {
+    const amount = parseFloat(desc?.amount) || 0;
+    return sum + amount;
+  }, 0) || 0;
+
+  console.log('Rendering invoice', invoice.id, 'with descriptions:', invoice.descriptions);
+
+  return (
+    <>
+      <TableRow>
+        <TableCell>
+          <IconButton size="small" onClick={() => setOpen(!open)}>
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell>{invoice.invoice_number}</TableCell>
+        <TableCell>{invoice.customer}</TableCell>
+        <TableCell>{formatDate(invoice.date)}</TableCell>
+        <TableCell>{invoice.customer_po || '-'}</TableCell>
+        <TableCell align="right">${totalAmount.toFixed(2)}</TableCell>
+        <TableCell align="center">
+          <IconButton size="small" color="primary">
+            <ViewIcon />
+          </IconButton>
+          <IconButton size="small" color="primary">
+            <EditIcon />
+          </IconButton>
+          <IconButton size="small" color="error">
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 1 }}>
+              <Typography variant="h6" gutterBottom component="div">
+                Descriptions
+              </Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Account #</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                    <TableCell>Tax</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {invoice.descriptions && invoice.descriptions.length > 0 ? (
+                    invoice.descriptions.map((desc, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{desc?.accountNumber || '-'}</TableCell>
+                        <TableCell>{desc?.description || '-'}</TableCell>
+                        <TableCell align="right">${(parseFloat(desc?.amount) || 0).toFixed(2)}</TableCell>
+                        <TableCell>{desc?.tax || '-'}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center">
+                        No descriptions available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+};
+
+const Invoices = () => {
+  const navigate = useNavigate();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      console.log('Fetching invoices from backend...');
+      const response = await fetch('http://localhost:3000/api/invoices');
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response from server:', errorData);
+        throw new Error(errorData.message || 'Failed to fetch invoices');
+      }
+      
+      const data = await response.json();
+      console.log('Received invoices data:', data);
+      setInvoices(data);
+    } catch (err) {
+      console.error('Detailed error in fetchInvoices:', {
+        message: err.message,
+        stack: err.stack
+      });
+      setError('Failed to load invoices. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -70,10 +168,17 @@ const Invoices = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
+          onClick={() => navigate('/invoices/new')}
         >
           New Invoice
         </Button>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
@@ -81,43 +186,27 @@ const Invoices = () => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell />
                   <TableCell>Invoice #</TableCell>
                   <TableCell>Customer</TableCell>
                   <TableCell>Date</TableCell>
-                  <TableCell>Due Date</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell>Customer PO</TableCell>
+                  <TableCell align="right">Total Amount</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>{invoice.id}</TableCell>
-                    <TableCell>{invoice.customer}</TableCell>
-                    <TableCell>{invoice.date}</TableCell>
-                    <TableCell>{invoice.dueDate}</TableCell>
-                    <TableCell align="right">${invoice.amount}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={invoice.status.toUpperCase()}
-                        color={getStatusColor(invoice.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton size="small" color="primary">
-                        <ViewIcon />
-                      </IconButton>
-                      <IconButton size="small" color="primary">
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton size="small" color="error">
-                        <DeleteIcon />
-                      </IconButton>
+                {invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      No invoices found
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  invoices.map((invoice) => (
+                    <InvoiceRow key={invoice.id} invoice={invoice} />
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>
