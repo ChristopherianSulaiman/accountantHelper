@@ -102,7 +102,9 @@ CREATE TABLE services (
     nrc DECIMAL(10,2) NOT NULL,
     mrc DECIMAL(10,2) NOT NULL,
     start_date DATE NOT NULL,
-    end_date DATE NOT NULL
+    end_date DATE NOT NULL,
+    cust_id INT NOT NULL,
+    FOREIGN KEY (cust_id) REFERENCES customers(cust_id)
 );
 
 -- Invoice Table
@@ -111,6 +113,7 @@ CREATE TABLE invoices (
     service_id INT NOT NULL,
     qty INT NOT NULL,
     invoice_number VARCHAR(50) NOT NULL UNIQUE,
+    customer_po VARCHAR(50) NOT NULL UNIQUE,
     cust_id INT NOT NULL,
     nrc DECIMAL(10,2) NOT NULL,
     mrc DECIMAL(10,2) NOT NULL,

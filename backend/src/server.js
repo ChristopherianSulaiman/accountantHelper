@@ -74,7 +74,12 @@ app.get('/', (req, res) => {
 // Get all services endpoint
 app.get('/api/services', async (req, res) => {
   try {
-    const [services] = await pool.execute('SELECT * FROM services ORDER BY start_date DESC');
+    const [services] = await pool.execute(`
+      SELECT s.*, c.cust_name 
+      FROM services s
+      LEFT JOIN customers c ON s.cust_id = c.cust_id
+      ORDER BY s.start_date DESC
+    `);
     res.json(services);
   } catch (error) {
     console.error('Error fetching services:', error);
@@ -85,11 +90,15 @@ app.get('/api/services', async (req, res) => {
 // Create service endpoint
 app.post('/api/services', async (req, res) => {
   try {
-    const { service_type, service_name, nrc, mrc, start_date, end_date } = req.body;
+    const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id } = req.body;
     
+    if (!cust_id) {
+      return res.status(400).json({ message: 'Customer ID is required' });
+    }
+
     const [result] = await pool.execute(
-      'INSERT INTO services (service_type, service_name, nrc, mrc, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)',
-      [service_type, service_name, nrc, mrc, start_date, end_date]
+      'INSERT INTO services (service_type, service_name, nrc, mrc, start_date, end_date, cust_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [service_type, service_name, nrc, mrc, start_date, end_date, cust_id]
     );
 
     res.status(201).json({

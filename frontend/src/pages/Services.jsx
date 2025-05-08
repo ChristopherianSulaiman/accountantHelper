@@ -15,6 +15,12 @@ import {
   CircularProgress,
   Alert,
   Collapse,
+  TextField,
+  Grid,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -45,13 +51,9 @@ const ServiceRow = ({ service }) => {
   return (
     <>
       <TableRow>
-        <TableCell>
-          {/* <IconButton size="small" onClick={() => setOpen(!open)}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton> */}
-        </TableCell>
         <TableCell>{service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}</TableCell>
         <TableCell>{service.service_name}</TableCell>
+        <TableCell>{service.cust_name}</TableCell>
         <TableCell align="right">${parseFloat(service.nrc).toFixed(2)}</TableCell>
         <TableCell align="right">${parseFloat(service.mrc).toFixed(2)}</TableCell>
         <TableCell>{formatDate(service.start_date)}</TableCell>
@@ -68,7 +70,7 @@ const ServiceRow = ({ service }) => {
           </IconButton>
         </TableCell>
       </TableRow>
-      {/* <TableRow>
+      <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1 }}>
@@ -80,6 +82,7 @@ const ServiceRow = ({ service }) => {
                   <TableRow>
                     <TableCell>Service Type</TableCell>
                     <TableCell>Service Name</TableCell>
+                    <TableCell>Customer</TableCell>
                     <TableCell align="right">NRC</TableCell>
                     <TableCell align="right">MRC</TableCell>
                     <TableCell>Start Date</TableCell>
@@ -90,6 +93,7 @@ const ServiceRow = ({ service }) => {
                   <TableRow>
                     <TableCell>{service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}</TableCell>
                     <TableCell>{service.service_name}</TableCell>
+                    <TableCell>{service.cust_name}</TableCell>
                     <TableCell align="right">${parseFloat(service.nrc).toFixed(2)}</TableCell>
                     <TableCell align="right">${parseFloat(service.mrc).toFixed(2)}</TableCell>
                     <TableCell>{formatDate(service.start_date)}</TableCell>
@@ -100,7 +104,7 @@ const ServiceRow = ({ service }) => {
             </Box>
           </Collapse>
         </TableCell>
-      </TableRow> */}
+      </TableRow>
     </>
   );
 };
@@ -108,6 +112,7 @@ const ServiceRow = ({ service }) => {
 const Services = () => {
   const navigate = useNavigate();
   const [services, setServices] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -117,7 +122,8 @@ const Services = () => {
     nrc: '',
     mrc: '',
     start_date: '',
-    end_date: ''
+    end_date: '',
+    cust_id: ''
   });
 
   const serviceTypes = [
@@ -131,6 +137,7 @@ const Services = () => {
 
   useEffect(() => {
     fetchServices();
+    fetchCustomers();
   }, []);
 
   const fetchServices = async () => {
@@ -142,6 +149,16 @@ const Services = () => {
       setError('Failed to load services. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/customers');
+      setCustomers(response.data);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      setError('Failed to load customers. Please try again.');
     }
   };
 
@@ -164,7 +181,8 @@ const Services = () => {
         nrc: '',
         mrc: '',
         start_date: '',
-        end_date: ''
+        end_date: '',
+        cust_id: ''
       });
       fetchServices();
     } catch (error) {
@@ -202,138 +220,114 @@ const Services = () => {
       )}
 
       {showForm && (
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <form onSubmit={handleSubmit}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Service Type
-                  </Typography>
-                  <select
+        <Card sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Add New Service
+          </Typography>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Service Type</InputLabel>
+                  <Select
                     name="service_type"
                     value={formData.service_type}
                     onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
+                    label="Service Type"
                   >
-                    <option value="">Select Type</option>
-                    {serviceTypes.map(type => (
-                      <option key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </option>
+                    <MenuItem value="internet">Internet</MenuItem>
+                    <MenuItem value="connectivity">Connectivity</MenuItem>
+                    <MenuItem value="hosting">Hosting</MenuItem>
+                    <MenuItem value="cloud">Cloud</MenuItem>
+                    <MenuItem value="security">Security</MenuItem>
+                    <MenuItem value="maintenance">Maintenance</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Service Name"
+                  name="service_name"
+                  value={formData.service_name}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Customer</InputLabel>
+                  <Select
+                    name="cust_id"
+                    value={formData.cust_id}
+                    onChange={handleInputChange}
+                    label="Customer"
+                  >
+                    {customers.map((customer) => (
+                      <MenuItem key={customer.cust_id} value={customer.cust_id}>
+                        {customer.cust_name}
+                      </MenuItem>
                     ))}
-                  </select>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Service Name
-                  </Typography>
-                  <input
-                    type="text"
-                    name="service_name"
-                    value={formData.service_name}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    NRC
-                  </Typography>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="nrc"
-                    value={formData.nrc}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    MRC
-                  </Typography>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="mrc"
-                    value={formData.mrc}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Start Date
-                  </Typography>
-                  <input
-                    type="date"
-                    name="start_date"
-                    value={formData.start_date}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    End Date
-                  </Typography>
-                  <input
-                    type="date"
-                    name="end_date"
-                    value={formData.end_date}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #ccc'
-                    }}
-                    required
-                  />
-                </Box>
-              </Box>
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                >
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="NRC"
+                  name="nrc"
+                  type="number"
+                  value={formData.nrc}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="MRC"
+                  name="mrc"
+                  type="number"
+                  value={formData.mrc}
+                  onChange={handleInputChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Start Date"
+                  name="start_date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="End Date"
+                  name="end_date"
+                  type="date"
+                  value={formData.end_date}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Button type="submit" variant="contained" color="primary">
                   Create Service
                 </Button>
-              </Box>
-            </form>
-          </CardContent>
+              </Grid>
+            </Grid>
+          </form>
         </Card>
       )}
 
@@ -343,9 +337,9 @@ const Services = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell />
                   <TableCell>Service Type</TableCell>
                   <TableCell>Service Name</TableCell>
+                  <TableCell>Customer</TableCell>
                   <TableCell align="right">NRC</TableCell>
                   <TableCell align="right">MRC</TableCell>
                   <TableCell>Start Date</TableCell>
