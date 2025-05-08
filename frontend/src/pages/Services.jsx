@@ -59,9 +59,9 @@ const ServiceRow = ({ service }) => {
         <TableCell>{formatDate(service.start_date)}</TableCell>
         <TableCell>{formatDate(service.end_date)}</TableCell>
         <TableCell align="center">
-          <IconButton size="small" color="primary">
+          {/* <IconButton size="small" color="primary">
             <ViewIcon />
-          </IconButton>
+          </IconButton> */}
           <IconButton size="small" color="primary">
             <EditIcon />
           </IconButton>
