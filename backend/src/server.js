@@ -111,6 +111,61 @@ app.post('/api/services', async (req, res) => {
   }
 });
 
+// Update service endpoint
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id } = req.body;
+    
+    const [result] = await pool.execute(
+      'UPDATE services SET service_type = ?, service_name = ?, nrc = ?, mrc = ?, start_date = ?, end_date = ?, cust_id = ? WHERE service_id = ?',
+      [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    res.json({
+      message: 'Service updated successfully',
+      serviceId: id
+    });
+  } catch (error) {
+    console.error('Error updating service:', error);
+    res.status(500).json({ message: 'Error updating service' });
+  }
+});
+
+// Delete service endpoint
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First delete related invoices
+    await pool.execute(
+      'DELETE FROM invoices WHERE service_id = ?',
+      [id]
+    );
+
+    // Then delete the service
+    const [result] = await pool.execute(
+      'DELETE FROM services WHERE service_id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    res.json({
+      message: 'Service and related invoices deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({ message: 'Error deleting service' });
+  }
+});
+
 // Get all invoices endpoint
 app.get('/api/invoices', async (req, res) => {
   try {
@@ -142,6 +197,32 @@ app.post('/api/invoices', async (req, res) => {
   try {
     const { invoice_number, cust_id, customer_po, service_id, qty, status } = req.body;
     
+    // Check for duplicate invoice number
+    const [existingInvoice] = await pool.execute(
+      'SELECT * FROM invoices WHERE invoice_number = ?',
+      [invoice_number]
+    );
+
+    if (existingInvoice.length > 0) {
+      return res.status(400).json({ 
+        message: 'Invoice creation failed',
+        error: 'An invoice with this invoice number already exists'
+      });
+    }
+
+    // Check for duplicate customer PO
+    const [existingPO] = await pool.execute(
+      'SELECT * FROM invoices WHERE customer_po = ?',
+      [customer_po]
+    );
+
+    if (existingPO.length > 0) {
+      return res.status(400).json({ 
+        message: 'Invoice creation failed',
+        error: 'An invoice with this customer PO already exists'
+      });
+    }
+
     const [result] = await pool.execute(
       'INSERT INTO invoices (invoice_number, cust_id, customer_po, service_id, qty, status) VALUES (?, ?, ?, ?, ?, ?)',
       [invoice_number, cust_id, customer_po, service_id, qty, status]
@@ -153,7 +234,10 @@ app.post('/api/invoices', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating invoice:', error);
-    res.status(500).json({ message: 'Error creating invoice' });
+    res.status(500).json({ 
+      message: 'Invoice creation failed',
+      error: 'An unexpected error occurred while creating the invoice'
+    });
   }
 });
 
@@ -163,6 +247,32 @@ app.put('/api/invoices/:id', async (req, res) => {
     const { id } = req.params;
     const { invoice_number, cust_id, customer_po, service_id, qty, status } = req.body;
     
+    // Check for duplicate invoice number, excluding current invoice
+    const [existingInvoice] = await pool.execute(
+      'SELECT * FROM invoices WHERE invoice_number = ? AND invoice_id != ?',
+      [invoice_number, id]
+    );
+
+    if (existingInvoice.length > 0) {
+      return res.status(400).json({ 
+        message: 'Invoice update failed',
+        error: 'An invoice with this invoice number already exists'
+      });
+    }
+
+    // Check for duplicate customer PO, excluding current invoice
+    const [existingPO] = await pool.execute(
+      'SELECT * FROM invoices WHERE customer_po = ? AND invoice_id != ?',
+      [customer_po, id]
+    );
+
+    if (existingPO.length > 0) {
+      return res.status(400).json({ 
+        message: 'Invoice update failed',
+        error: 'An invoice with this customer PO already exists'
+      });
+    }
+
     const [result] = await pool.execute(
       'UPDATE invoices SET invoice_number = ?, cust_id = ?, customer_po = ?, service_id = ?, qty = ?, status = ? WHERE invoice_id = ?',
       [invoice_number, cust_id, customer_po, service_id, qty, status, id]
@@ -178,7 +288,10 @@ app.put('/api/invoices/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating invoice:', error);
-    res.status(500).json({ message: 'Error updating invoice' });
+    res.status(500).json({ 
+      message: 'Invoice update failed',
+      error: 'An unexpected error occurred while updating the invoice'
+    });
   }
 });
 

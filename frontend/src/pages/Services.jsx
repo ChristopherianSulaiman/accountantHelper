@@ -35,7 +35,7 @@ import { useState, useEffect } from 'react';
 import { format, parse } from 'date-fns';
 import axios from 'axios';
 
-const ServiceRow = ({ service }) => {
+const ServiceRow = ({ service, onDelete }) => {
   const [open, setOpen] = useState(false);
 
   const formatDate = (dateString) => {
@@ -59,13 +59,11 @@ const ServiceRow = ({ service }) => {
         <TableCell>{formatDate(service.start_date)}</TableCell>
         <TableCell>{formatDate(service.end_date)}</TableCell>
         <TableCell align="center">
-          {/* <IconButton size="small" color="primary">
-            <ViewIcon />
-          </IconButton> */}
-          <IconButton size="small" color="primary">
-            <EditIcon />
-          </IconButton>
-          <IconButton size="small" color="error">
+          <IconButton 
+            size="small" 
+            color="error" 
+            onClick={() => onDelete(service.service_id)}
+          >
             <DeleteIcon />
           </IconButton>
         </TableCell>
@@ -191,6 +189,18 @@ const Services = () => {
     }
   };
 
+  const handleDelete = async (serviceId) => {
+    if (window.confirm('Are you sure you want to delete this service? This will also delete all related invoices.')) {
+      try {
+        await axios.delete(`http://localhost:3000/api/services/${serviceId}`);
+        fetchServices(); // Refresh the services list
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        setError('Failed to delete service. Please try again.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -207,7 +217,18 @@ const Services = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setFormData({
+              service_type: '',
+              service_name: '',
+              nrc: '',
+              mrc: '',
+              start_date: '',
+              end_date: '',
+              cust_id: ''
+            });
+            setShowForm(!showForm);
+          }}
         >
           {showForm ? 'Cancel' : 'New Service'}
         </Button>
@@ -228,8 +249,9 @@ const Services = () => {
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
-                  <InputLabel>Service Type</InputLabel>
+                  <InputLabel id="service-type-label">Service Type</InputLabel>
                   <Select
+                    labelId="service-type-label"
                     name="service_type"
                     value={formData.service_type}
                     onChange={handleInputChange}
@@ -255,23 +277,6 @@ const Services = () => {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Customer</InputLabel>
-                  <Select
-                    name="cust_id"
-                    value={formData.cust_id}
-                    onChange={handleInputChange}
-                    label="Customer"
-                  >
-                    {customers.map((customer) => (
-                      <MenuItem key={customer.cust_id} value={customer.cust_id}>
-                        {customer.cust_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="NRC"
@@ -280,6 +285,7 @@ const Services = () => {
                   value={formData.nrc}
                   onChange={handleInputChange}
                   required
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -291,6 +297,7 @@ const Services = () => {
                   value={formData.mrc}
                   onChange={handleInputChange}
                   required
+                  inputProps={{ min: 0, step: 0.01 }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -322,8 +329,41 @@ const Services = () => {
                 />
               </Grid>
               <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel id="customer-label">Customer</InputLabel>
+                  <Select
+                    labelId="customer-label"
+                    name="cust_id"
+                    value={formData.cust_id}
+                    onChange={handleInputChange}
+                    label="Customer"
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 300
+                        }
+                      }
+                    }}
+                  >
+                    {customers.map((customer) => (
+                      <MenuItem key={customer.cust_id} value={customer.cust_id}>
+                        {customer.cust_name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
                 <Button type="submit" variant="contained" color="primary">
                   Create Service
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => setShowForm(false)}
+                  sx={{ ml: 2 }}
+                >
+                  Cancel
                 </Button>
               </Grid>
             </Grid>
@@ -356,7 +396,11 @@ const Services = () => {
                   </TableRow>
                 ) : (
                   services.map((service) => (
-                    <ServiceRow key={service.service_id} service={service} />
+                    <ServiceRow 
+                      key={service.service_id} 
+                      service={service}
+                      onDelete={handleDelete}
+                    />
                   ))
                 )}
               </TableBody>

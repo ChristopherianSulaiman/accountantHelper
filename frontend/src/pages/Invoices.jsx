@@ -26,7 +26,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -36,7 +37,8 @@ import {
   AddCircle as AddCircleIcon,
   RemoveCircle as RemoveCircleIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
-  KeyboardArrowDown as KeyboardArrowDownIcon
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { format, parse } from 'date-fns';
 
@@ -92,6 +94,7 @@ const Invoices = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showError, setShowError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [formData, setFormData] = useState({
@@ -115,6 +118,18 @@ const Invoices = () => {
       fetchCustomerServices(formData.cust_id);
     }
   }, [formData.cust_id]);
+
+  useEffect(() => {
+    if (error) {
+      setShowError(true);
+      const timer = setTimeout(() => {
+        setShowError(false);
+        setTimeout(() => setError(''), 300);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const fetchInvoices = async () => {
     try {
@@ -159,12 +174,10 @@ const Invoices = () => {
 
   const handleEdit = async (invoice) => {
     try {
-      // First fetch services for the customer
       const response = await axios.get(`http://localhost:3000/api/services`);
       const customerServices = response.data.filter(service => service.cust_id === parseInt(invoice.cust_id));
       setServices(customerServices);
       
-      // Then set the form data and show the form
       setEditingInvoice(invoice);
       setFormData({
         invoice_number: invoice.invoice_number,
@@ -202,11 +215,24 @@ const Invoices = () => {
       } else {
         await axios.post('http://localhost:3000/api/invoices', formData);
       }
-      handleCancel();
+      setShowForm(false);
+      setEditingInvoice(null);
+      setFormData({
+        invoice_number: '',
+        cust_id: '',
+        customer_po: '',
+        service_id: '',
+        qty: '',
+        status: 'pending'
+      });
       fetchInvoices();
     } catch (error) {
       console.error('Error saving invoice:', error);
-      setError('Failed to save invoice. Please try again.');
+      if (error.response && error.response.data && error.response.data.error) {
+        setError(error.response.data.error);
+      } else {
+        setError(`Failed to ${editingInvoice ? 'update' : 'create'} invoice. Please try again.`);
+      }
     }
   };
 
@@ -230,6 +256,11 @@ const Invoices = () => {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setInvoiceToDelete(null);
+  };
+
+  const handleCloseError = () => {
+    setShowError(false);
+    setTimeout(() => setError(''), 300);
   };
 
   if (loading) {
@@ -265,11 +296,39 @@ const Invoices = () => {
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+      <Snackbar
+        open={showError}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ mt: 2 }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={handleCloseError}
+          sx={{
+            width: '100%',
+            '& .MuiAlert-message': {
+              fontSize: '1rem',
+              fontWeight: 500
+            },
+            '& .MuiAlert-icon': {
+              fontSize: '1.5rem'
+            }
+          }}
+          action={
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseError}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          }
+        >
           {error}
         </Alert>
-      )}
+      </Snackbar>
 
       {showForm && (
         <Card sx={{ p: 3, mb: 3 }}>
