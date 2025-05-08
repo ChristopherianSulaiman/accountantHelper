@@ -22,8 +22,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Divider,
-  Collapse
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import { format, parse } from 'date-fns';
 
-const InvoiceRow = ({ invoice, onEdit }) => {
+const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
   const [open, setOpen] = useState(false);
 
   const formatDate = (dateString) => {
@@ -75,7 +78,7 @@ const InvoiceRow = ({ invoice, onEdit }) => {
         <IconButton size="small" color="primary" onClick={onEdit}>
           <EditIcon />
         </IconButton>
-        <IconButton size="small" color="error">
+        <IconButton size="small" color="error" onClick={onDelete}>
           <DeleteIcon />
         </IconButton>
       </TableCell>
@@ -99,6 +102,8 @@ const Invoices = () => {
     qty: 1,
     status: 'pending'
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -153,25 +158,27 @@ const Invoices = () => {
   };
 
   const handleEdit = async (invoice) => {
-    setEditingInvoice(invoice);
-    setFormData({
-      invoice_number: invoice.invoice_number,
-      cust_id: invoice.cust_id,
-      customer_po: invoice.customer_po,
-      service_id: invoice.service_id,
-      qty: invoice.qty,
-      status: invoice.status
-    });
-    // Fetch services for the customer
     try {
+      // First fetch services for the customer
       const response = await axios.get(`http://localhost:3000/api/services`);
       const customerServices = response.data.filter(service => service.cust_id === parseInt(invoice.cust_id));
       setServices(customerServices);
+      
+      // Then set the form data and show the form
+      setEditingInvoice(invoice);
+      setFormData({
+        invoice_number: invoice.invoice_number,
+        cust_id: invoice.cust_id,
+        customer_po: invoice.customer_po,
+        service_id: invoice.service_id,
+        qty: invoice.qty,
+        status: invoice.status
+      });
+      setShowForm(true);
     } catch (error) {
       console.error('Error fetching services:', error);
       setError('Failed to load services. Please try again.');
     }
-    setShowForm(true);
   };
 
   const handleCancel = () => {
@@ -201,6 +208,28 @@ const Invoices = () => {
       console.error('Error saving invoice:', error);
       setError('Failed to save invoice. Please try again.');
     }
+  };
+
+  const handleDeleteClick = (invoice) => {
+    setInvoiceToDelete(invoice);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await axios.delete(`http://localhost:3000/api/invoices/${invoiceToDelete.invoice_id}`);
+      setDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      setError('Failed to delete invoice. Please try again.');
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setInvoiceToDelete(null);
   };
 
   if (loading) {
@@ -249,7 +278,7 @@ const Invoices = () => {
           </Typography>
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Invoice Number"
@@ -259,14 +288,22 @@ const Invoices = () => {
                   required
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={8}>
                 <FormControl fullWidth required>
-                  <InputLabel>Customer</InputLabel>
+                  <InputLabel id="customer-label">Customer</InputLabel>
                   <Select
+                    labelId="customer-label"
                     name="cust_id"
                     value={formData.cust_id}
                     onChange={handleInputChange}
                     label="Customer"
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 300
+                        }
+                      }
+                    }}
                   >
                     {customers.map((customer) => (
                       <MenuItem key={customer.cust_id} value={customer.cust_id}>
@@ -276,7 +313,7 @@ const Invoices = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Customer PO"
@@ -286,14 +323,22 @@ const Invoices = () => {
                   required
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={8}>
                 <FormControl fullWidth required>
-                  <InputLabel>Service</InputLabel>
+                  <InputLabel id="service-label">Service</InputLabel>
                   <Select
+                    labelId="service-label"
                     name="service_id"
                     value={formData.service_id}
                     onChange={handleInputChange}
                     label="Service"
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 300
+                        }
+                      }
+                    }}
                   >
                     {services.map((service) => (
                       <MenuItem key={service.service_id} value={service.service_id}>
@@ -317,8 +362,9 @@ const Invoices = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
-                  <InputLabel>Status</InputLabel>
+                  <InputLabel id="status-label">Status</InputLabel>
                   <Select
+                    labelId="status-label"
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
@@ -349,6 +395,24 @@ const Invoices = () => {
         </Card>
       )}
 
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>Delete Invoice</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete invoice {invoiceToDelete?.invoice_number}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Card>
         <CardContent>
           <TableContainer component={Paper}>
@@ -377,6 +441,7 @@ const Invoices = () => {
                       key={invoice.invoice_id} 
                       invoice={invoice} 
                       onEdit={() => handleEdit(invoice)}
+                      onDelete={() => handleDeleteClick(invoice)}
                     />
                   ))
                 )}
