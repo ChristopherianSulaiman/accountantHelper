@@ -114,76 +114,82 @@ app.post('/api/services', async (req, res) => {
 // Get all invoices endpoint
 app.get('/api/invoices', async (req, res) => {
   try {
-    console.log('Fetching invoices...');
-    
-    // Get invoices with their descriptions
+    // Get invoices with their descriptions and related information
     const [invoices] = await pool.execute(`
       SELECT 
-        i.*,
+        i.invoice_id,
+        i.invoice_number,
+        i.customer_po,
+        c.cust_name,
+        s.service_name,
+        s.service_type,
+        i.qty,
+        i.status,
         COALESCE(
           GROUP_CONCAT(
             JSON_OBJECT(
-              'id', d.id,
-              'accountNumber', d.account_number,
-              'description', d.description,
-              'amount', d.amount,
-              'tax', d.tax
+              'service_id', d.service_id,
+              'service_name', ds.service_name,
+              'service_type', ds.service_type,
+              'qty', d.qty,
+              'status', d.status
             ) SEPARATOR ','
           ),
           '[]'
-        ) as descriptions
+        ) as additional_descriptions
       FROM invoices i
-      LEFT JOIN invoice_descriptions d ON i.id = d.invoice_id
-      GROUP BY i.id
-      ORDER BY i.date DESC
+      LEFT JOIN customers c ON i.cust_id = c.cust_id
+      LEFT JOIN services s ON i.service_id = s.service_id
+      LEFT JOIN invoice_descriptions d ON i.invoice_id = d.invoice_id
+      LEFT JOIN services ds ON d.service_id = ds.service_id
+      GROUP BY i.invoice_id
+      ORDER BY i.invoice_id DESC
     `);
 
-    console.log('Raw invoices data:', JSON.stringify(invoices, null, 2));
-
-    // Parse the descriptions JSON strings
+    // Parse the additional descriptions JSON strings
     const formattedInvoices = invoices.map(invoice => {
-      let descriptions = [];
+      let additionalDescriptions = [];
       try {
-        if (!invoice.descriptions || invoice.descriptions === '[]') {
-          descriptions = [];
-        } else if (invoice.descriptions.startsWith('[')) {
-          descriptions = JSON.parse(invoice.descriptions);
-        } else {
-          // Handle comma-separated JSON objects
-          descriptions = JSON.parse(`[${invoice.descriptions}]`);
+        if (invoice.additional_descriptions && invoice.additional_descriptions !== '[]') {
+          additionalDescriptions = JSON.parse(`[${invoice.additional_descriptions}]`);
         }
       } catch (error) {
-        console.error('Error parsing descriptions for invoice', invoice.id, error);
-        descriptions = [];
+        console.error('Error parsing descriptions for invoice', invoice.invoice_id, error);
+        additionalDescriptions = [];
       }
 
-      const result = {
-        ...invoice,
-        descriptions: descriptions.filter(desc => desc && desc.id !== null) // Filter out null descriptions
+      // Combine main service and additional descriptions
+      const allDescriptions = [
+        {
+          service_id: invoice.service_id,
+          service_name: invoice.service_name,
+          service_type: invoice.service_type,
+          qty: invoice.qty,
+          status: invoice.status
+        },
+        ...additionalDescriptions
+      ];
+
+      return {
+        invoice_id: invoice.invoice_id,
+        invoice_number: invoice.invoice_number,
+        customer: invoice.cust_name,
+        customer_po: invoice.customer_po,
+        descriptions: allDescriptions
       };
-      console.log('Formatted invoice', invoice.id, 'descriptions:', JSON.stringify(result.descriptions, null, 2));
-      return result;
     });
 
-    console.log('Formatted invoices:', JSON.stringify(formattedInvoices, null, 2));
     res.json(formattedInvoices);
   } catch (error) {
-    console.error('Detailed error in /api/invoices:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-    res.status(500).json({ 
-      message: 'Error fetching invoices',
-      error: error.message 
-    });
+    console.error('Error fetching invoices:', error);
+    res.status(500).json({ message: 'Error fetching invoices' });
   }
 });
 
 // Create invoice endpoint
 app.post('/api/invoices', async (req, res) => {
   try {
-    const { invoiceNumber, customer, date, customerPo, descriptions } = req.body;
+    const { invoice_number, cust_id, customer_po, date, descriptions } = req.body;
     
     // Start a transaction
     const connection = await pool.getConnection();
@@ -192,17 +198,18 @@ app.post('/api/invoices', async (req, res) => {
     try {
       // Insert invoice
       const [invoiceResult] = await connection.execute(
-        'INSERT INTO invoices (invoice_number, customer, date, customer_po, due_date, amount) VALUES (?, ?, ?, ?, NULL, NULL)',
-        [invoiceNumber, customer, date, customerPo]
+        'INSERT INTO invoices (invoice_number, cust_id, customer_po, service_id, qty, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [invoice_number, cust_id, customer_po, descriptions[0].service_id, descriptions[0].qty, descriptions[0].status]
       );
 
       const invoiceId = invoiceResult.insertId;
 
-      // Insert descriptions
-      for (const desc of descriptions) {
+      // Insert additional descriptions if any
+      for (let i = 1; i < descriptions.length; i++) {
+        const desc = descriptions[i];
         await connection.execute(
-          'INSERT INTO invoice_descriptions (invoice_id, account_number, description, amount, tax) VALUES (?, ?, ?, ?, ?)',
-          [invoiceId, desc.accountNumber, desc.description, desc.amount, desc.tax]
+          'INSERT INTO invoice_descriptions (invoice_id, service_id, qty, status) VALUES (?, ?, ?, ?)',
+          [invoiceId, desc.service_id, desc.qty, desc.status]
         );
       }
 

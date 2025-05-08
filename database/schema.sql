@@ -115,8 +115,8 @@ CREATE TABLE invoices (
     invoice_number VARCHAR(50) NOT NULL UNIQUE,
     customer_po VARCHAR(50) NOT NULL UNIQUE,
     cust_id INT NOT NULL,
-    nrc DECIMAL(10,2) NOT NULL,
-    mrc DECIMAL(10,2) NOT NULL,
+    -- nrc DECIMAL(10,2) NOT NULL,
+    -- mrc DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
     FOREIGN KEY (service_id) REFERENCES services(service_id),
     FOREIGN KEY (cust_id) REFERENCES customers(cust_id)
