@@ -20,55 +20,86 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'accountant_helper',
+  database: process.env.DB_NAME || 'fullstack_app',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
-// Run migrations
-async function runMigrations() {
-  try {
-    const migrationPath = path.join(__dirname, 'config', 'migrations.sql');
-    const migrationSQL = await fs.readFile(migrationPath, 'utf8');
+// // Run migrations
+// async function runMigrations() {
+//   try {
+//     const migrationPath = path.join(__dirname, 'config', 'migrations.sql');
+//     const migrationSQL = await fs.readFile(migrationPath, 'utf8');
     
-    // Split the SQL file into individual statements
-    const statements = migrationSQL
-      .split(';')
-      .map(statement => statement.trim())
-      .filter(statement => statement.length > 0);
+//     // Split the SQL file into individual statements
+//     const statements = migrationSQL
+//       .split(';')
+//       .map(statement => statement.trim())
+//       .filter(statement => statement.length > 0);
     
-    const connection = await pool.getConnection();
-    try {
-      // Execute each statement separately
-      for (const statement of statements) {
-        try {
-          await connection.query(statement);
-          console.log('Executed migration:', statement);
-        } catch (error) {
-          // If the error is about duplicate column, we can ignore it
-          if (error.code === 'ER_DUP_FIELDNAME') {
-            console.log('Column already exists, skipping migration');
-          } else {
-            throw error; // Re-throw other errors
-          }
-        }
-      }
-      console.log('All migrations completed successfully');
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Error running migrations:', error);
-  }
-}
+//     const connection = await pool.getConnection();
+//     try {
+//       // Execute each statement separately
+//       for (const statement of statements) {
+//         try {
+//           await connection.query(statement);
+//           console.log('Executed migration:', statement);
+//         } catch (error) {
+//           // If the error is about duplicate column, we can ignore it
+//           if (error.code === 'ER_DUP_FIELDNAME') {
+//             console.log('Column already exists, skipping migration');
+//           } else {
+//             throw error; // Re-throw other errors
+//           }
+//         }
+//       }
+//       console.log('All migrations completed successfully');
+//     } finally {
+//       connection.release();
+//     }
+//   } catch (error) {
+//     console.error('Error running migrations:', error);
+//   }
+// }
 
-// Run migrations when server starts
-runMigrations();
+// // Run migrations when server starts
+// runMigrations();
 
 // Basic route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the API' });
+});
+
+// Get all services endpoint
+app.get('/api/services', async (req, res) => {
+  try {
+    const [services] = await pool.execute('SELECT * FROM services ORDER BY start_date DESC');
+    res.json(services);
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    res.status(500).json({ message: 'Error fetching services' });
+  }
+});
+
+// Create service endpoint
+app.post('/api/services', async (req, res) => {
+  try {
+    const { service_type, service_name, nrc, mrc, start_date, end_date } = req.body;
+    
+    const [result] = await pool.execute(
+      'INSERT INTO services (service_type, service_name, nrc, mrc, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)',
+      [service_type, service_name, nrc, mrc, start_date, end_date]
+    );
+
+    res.status(201).json({
+      message: 'Service created successfully',
+      serviceId: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating service:', error);
+    res.status(500).json({ message: 'Error creating service' });
+  }
 });
 
 // Get all invoices endpoint
@@ -180,6 +211,77 @@ app.post('/api/invoices', async (req, res) => {
   } catch (error) {
     console.error('Error creating invoice:', error);
     res.status(500).json({ message: 'Error creating invoice' });
+  }
+});
+
+// Get all customers endpoint
+app.get('/api/customers', async (req, res) => {
+  try {
+    const [customers] = await pool.execute('SELECT * FROM customers ORDER BY cust_id DESC');
+    res.json(customers);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    res.status(500).json({ message: 'Error fetching customers' });
+  }
+});
+
+// Create customer endpoint
+app.post('/api/customers', async (req, res) => {
+  try {
+    const { cust_name, cust_address } = req.body;
+    
+    const [result] = await pool.execute(
+      'INSERT INTO customers (cust_name, cust_address) VALUES (?, ?)',
+      [cust_name, cust_address]
+    );
+
+    res.status(201).json({
+      message: 'Customer created successfully',
+      customerId: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    res.status(500).json({ message: 'Error creating customer' });
+  }
+});
+
+// Get all banks endpoint
+app.get('/api/banks', async (req, res) => {
+  try {
+    const [banks] = await pool.execute('SELECT * FROM banks ORDER BY bank_id DESC');
+    res.json(banks);
+  } catch (error) {
+    console.error('Error fetching banks:', error);
+    res.status(500).json({ message: 'Error fetching banks' });
+  }
+});
+
+// Create bank endpoint
+app.post('/api/banks', async (req, res) => {
+  try {
+    const { 
+      bank_name, 
+      bank_address, 
+      bank_code, 
+      swift_code, 
+      iban_code, 
+      currency, 
+      acc_number, 
+      type 
+    } = req.body;
+    
+    const [result] = await pool.execute(
+      'INSERT INTO banks (bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type]
+    );
+
+    res.status(201).json({
+      message: 'Bank created successfully',
+      bankId: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating bank:', error);
+    res.status(500).json({ message: 'Error creating bank' });
   }
 });
 

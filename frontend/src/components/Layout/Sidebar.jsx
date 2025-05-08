@@ -19,6 +19,7 @@ import {
   Assessment as AssessmentIcon,
   Settings as SettingsIcon,
   AttachMoney as AttachMoneyIcon,
+  Build as BuildIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -26,11 +27,9 @@ const drawerWidth = 240;
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Invoices', icon: <ReceiptIcon />, path: '/invoices' },
-  { text: 'Bills', icon: <AttachMoneyIcon />, path: '/bills' },
-  { text: 'Banking', icon: <AccountBalanceIcon />, path: '/banking' },
+  { text: 'Services', icon: <BuildIcon />, path: '/services' },
+  { text: 'Banks', icon: <AccountBalanceIcon />, path: '/banks' },
   { text: 'Customers', icon: <PeopleIcon />, path: '/customers' },
-  { text: 'Reports', icon: <AssessmentIcon />, path: '/reports' },
-  { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
 const Sidebar = () => {

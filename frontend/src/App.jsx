@@ -5,6 +5,9 @@ import MainLayout from './components/Layout/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
 import NewInvoice from './pages/NewInvoice';
+import Services from './pages/Services';
+import Customers from './pages/Customers';
+import Banks from './pages/Banks';
 
 // Create a theme instance
 const theme = createTheme({
@@ -47,6 +50,9 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/invoices/new" element={<NewInvoice />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/banks" element={<Banks />} />
             {/* Add more routes as needed */}
           </Routes>
         </MainLayout>
