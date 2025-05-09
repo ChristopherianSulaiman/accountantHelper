@@ -24,12 +24,25 @@ import {
   Print as PrintIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Checkbox from '@mui/material/Checkbox';
+import ListItemText from '@mui/material/ListItemText';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Print = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [banks, setBanks] = useState([]);
+  const [selectedBanks, setSelectedBanks] = useState([]);
+  const [showDialog, setShowDialog] = useState(false);
+  const [customer, setCustomer] = useState(null);
+  const [service, setService] = useState(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -47,9 +60,167 @@ const Print = () => {
     }
   };
 
-  const handlePrint = (invoice) => {
+  const fetchBanks = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/banks');
+      setBanks(response.data);
+    } catch (error) {
+      console.error('Error fetching banks:', error);
+    }
+  };
+
+  const fetchCustomerAndService = async (invoice) => {
+    try {
+      let customerData = null;
+      let serviceData = null;
+      // Try to fetch by ID first
+      if (invoice.cust_id) {
+        try {
+          const customerRes = await axios.get(`http://localhost:3000/api/customers/${invoice.cust_id}`);
+          customerData = customerRes.data;
+        } catch (err) {
+          console.warn('Customer by ID not found, will try by name.');
+        }
+      }
+      if (!customerData && invoice.cust_name) {
+        // Fallback: fetch all and find by name
+        const allCustomers = await axios.get('http://localhost:3000/api/customers');
+        customerData = allCustomers.data.find(c => c.cust_name === invoice.cust_name);
+      }
+      setCustomer(customerData);
+
+      if (invoice.service_id) {
+        try {
+          const serviceRes = await axios.get(`http://localhost:3000/api/services/${invoice.service_id}`);
+          serviceData = serviceRes.data;
+        } catch (err) {
+          console.warn('Service by ID not found, will try by name.');
+        }
+      }
+      if (!serviceData && invoice.service_name) {
+        // Fallback: fetch all and find by name
+        const allServices = await axios.get('http://localhost:3000/api/services');
+        serviceData = allServices.data.find(s => s.service_name === invoice.service_name);
+      }
+      setService(serviceData);
+    } catch (err) {
+      console.error('Error fetching customer/service:', err);
+      setCustomer(null);
+      setService(null);
+    }
+  };
+
+  const handlePrint = async (invoice) => {
     setSelectedInvoice(invoice);
-    // TODO: Implement print functionality
+    await fetchBanks();
+    await fetchCustomerAndService(invoice);
+    setShowDialog(true);
+  };
+
+  const handleBankChange = (event) => {
+    const { value } = event.target;
+    setSelectedBanks(typeof value === 'string' ? value.split(',') : value);
+  };
+
+  const handleDialogClose = () => {
+    setShowDialog(false);
+    setSelectedInvoice(null);
+    setSelectedBanks([]);
+  };
+
+  const handlePrintPDF = () => {
+    if (!selectedInvoice || !customer || !service) return;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    // Header
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(customer.cust_name || '', 14, 18);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(customer.cust_address || '', 14, 25);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Invoice', 160, 18);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 160, 25);
+    doc.text(`PO #: ${selectedInvoice.customer_po}`, 160, 31);
+    // Service period
+    doc.text(`Period: ${service.start_date || ''} - ${service.end_date || ''}`, 14, 45);
+    // Table
+    const tableColumn = [
+      'Description',
+      'Period',
+      'Unit Price',
+      'Qty',
+      'Amount',
+    ];
+    const tableRows = [
+      [
+        service.service_name || '',
+        `${service.start_date || ''} - ${service.end_date || ''}`,
+        service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '',
+        selectedInvoice.qty || '',
+        service.mrc ? `Rp ${(parseFloat(service.mrc) * selectedInvoice.qty).toLocaleString()}` : '',
+      ],
+    ];
+    autoTable(doc, {
+      startY: 55,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 242, 0],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+      },
+      bodyStyles: {
+        halign: 'left',
+        valign: 'middle',
+        fontSize: 10,
+      },
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 15, halign: 'right' },
+        4: { cellWidth: 35, halign: 'right' },
+      },
+      styles: {
+        cellPadding: 2,
+        font: 'helvetica',
+      },
+    });
+    // NRC/MRC
+    let y = doc.lastAutoTable.finalY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Charges', 14, y);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.text('NRC (One-time Setup):', 14, y);
+    doc.text(service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '', 80, y);
+    y += 7;
+    doc.text('MRC (Monthly Recurring):', 14, y);
+    doc.text(service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '', 80, y);
+    y += 10;
+    // Banks
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bank Details', 14, y);
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    banks.filter(b => selectedBanks.includes(b.bank_id)).forEach((bank) => {
+      doc.text(`Bank Name: ${bank.bank_name}`, 14, y);
+      y += 6;
+      doc.text(`Account Number: ${bank.acc_number}`, 14, y);
+      y += 6;
+      doc.text(`Bank Address: ${bank.bank_address}`, 14, y);
+      y += 6;
+      doc.text(`SWIFT: ${bank.swift_code || ''}  IBAN: ${bank.iban_code || ''}`, 14, y);
+      y += 8;
+    });
+    doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
   };
 
   if (loading) {
@@ -133,6 +304,61 @@ const Print = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Print Dialog/Modal */}
+      <Dialog open={showDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
+        <DialogTitle>Print Invoice</DialogTitle>
+        <DialogContent>
+          {/* Bank Multi-Select */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="bank-select-label">Select Bank(s)</InputLabel>
+            <Select
+              labelId="bank-select-label"
+              multiple
+              value={selectedBanks}
+              onChange={handleBankChange}
+              renderValue={(selected) =>
+                banks
+                  .filter((bank) => selected.includes(bank.bank_id))
+                  .map((bank) => bank.bank_name)
+                  .join(', ')
+              }
+            >
+              {banks.map((bank) => (
+                <MenuItem key={bank.bank_id} value={bank.bank_id}>
+                  <Checkbox checked={selectedBanks.indexOf(bank.bank_id) > -1} />
+                  <ListItemText primary={bank.bank_name} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Invoice Preview */}
+          <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, background: '#fafafa', mb: 2 }}>
+            <Typography variant="h6">Invoice Preview</Typography>
+            {selectedInvoice && customer && service ? (
+              <Box>
+                <Typography variant="subtitle1"><b>Customer:</b> {customer.cust_name}</Typography>
+                <Typography variant="subtitle1"><b>Address:</b> {customer.cust_address}</Typography>
+                <Typography variant="subtitle1"><b>Invoice #:</b> {selectedInvoice.invoice_number}</Typography>
+                <Typography variant="subtitle1"><b>PO #:</b> {selectedInvoice.customer_po}</Typography>
+                <Typography variant="subtitle1"><b>Service:</b> {service.service_name}</Typography>
+                <Typography variant="subtitle1"><b>Period:</b> {service.start_date} - {service.end_date}</Typography>
+                <Typography variant="subtitle1"><b>Quantity:</b> {selectedInvoice.qty}</Typography>
+                <Typography variant="subtitle1"><b>NRC:</b> {service.nrc}</Typography>
+                <Typography variant="subtitle1"><b>MRC:</b> {service.mrc}</Typography>
+                <Typography variant="subtitle1"><b>Banks:</b> {banks.filter(b => selectedBanks.includes(b.bank_id)).map(b => b.bank_name).join(', ')}</Typography>
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Loading preview...</Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
+          <Button variant="contained" color="primary" onClick={handlePrintPDF}>Print / Download PDF</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
