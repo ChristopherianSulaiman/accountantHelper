@@ -130,16 +130,27 @@ const Print = () => {
     setSelectedBanks([]);
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    // If already a Date object, convert to string
+    if (dateStr instanceof Date) {
+      return dateStr.toISOString().slice(0, 10);
+    }
+    // If string, split at 'T' if present
+    return dateStr.split('T')[0];
+  };
+
   const handlePrintPDF = () => {
     if (!selectedInvoice || !customer || !service) return;
     const doc = new jsPDF('p', 'mm', 'a4');
     // Header
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(customer.cust_name || '', 14, 18);
-    doc.setFontSize(11);
+    doc.text('Billed To:', 14, 18);
+    doc.setFontSize(12);
+    doc.text(customer.cust_name || '', 14, 26);
     doc.setFont('helvetica', 'normal');
-    doc.text(customer.cust_address || '', 14, 25);
+    doc.text(customer.cust_address || '', 14, 32);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.text('Invoice', 160, 18);
@@ -147,8 +158,7 @@ const Print = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 160, 25);
     doc.text(`PO #: ${selectedInvoice.customer_po}`, 160, 31);
-    // Service period
-    doc.text(`Period: ${service.start_date || ''} - ${service.end_date || ''}`, 14, 45);
+    doc.text(`Period: ${formatDate(service.start_date)} - ${formatDate(service.end_date)}`, 14, 45);
     // Table
     const tableColumn = [
       'Description',
@@ -160,12 +170,21 @@ const Print = () => {
     const tableRows = [
       [
         service.service_name || '',
-        `${service.start_date || ''} - ${service.end_date || ''}`,
+        `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
         service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '',
         selectedInvoice.qty || '',
         service.mrc ? `Rp ${(parseFloat(service.mrc) * selectedInvoice.qty).toLocaleString()}` : '',
       ],
     ];
+    if (includeNRC && service.nrc) {
+      tableRows.push([
+        'Activation Fee',
+        `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
+        service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
+        '1',
+        service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
+      ]);
+    }
     autoTable(doc, {
       startY: 55,
       head: [tableColumn],
@@ -181,12 +200,12 @@ const Print = () => {
       bodyStyles: {
         halign: 'left',
         valign: 'middle',
-        fontSize: 10,
+        fontSize: 11,
       },
       columnStyles: {
         0: { cellWidth: 60 },
         1: { cellWidth: 40 },
-        2: { cellWidth: 30 },
+        2: { cellWidth: 30, halign: 'right' },
         3: { cellWidth: 15, halign: 'right' },
         4: { cellWidth: 35, halign: 'right' },
       },
@@ -195,24 +214,10 @@ const Print = () => {
         font: 'helvetica',
       },
     });
-    // NRC/MRC
-    let y = doc.lastAutoTable.finalY + 10;
+    // Add payment instructions and bank details
+    let y = doc.lastAutoTable.finalY + 15;
     doc.setFont('helvetica', 'bold');
-    doc.text('Charges', 14, y);
-    y += 7;
-    if (includeNRC && service.nrc) {
-      doc.setFont('helvetica', 'normal');
-      doc.text('NRC (One-time Setup)', 14, y);
-      doc.text(`Rp ${parseFloat(service.nrc).toLocaleString()}`, 80, y, { align: 'right' });
-      y += 7;
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.text('MRC (Monthly Recurring)', 14, y);
-    doc.text(service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '', 80, y, { align: 'right' });
-    y += 10;
-    // Banks
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bank Details', 14, y);
+    doc.text('All payment should be made in full Amount to PT. Digital Wireless Indonesia:', 14, y);
     y += 7;
     doc.setFont('helvetica', 'normal');
     banks.filter(b => selectedBanks.includes(b.bank_id)).forEach((bank) => {
@@ -225,7 +230,7 @@ const Print = () => {
       doc.text(`SWIFT: ${bank.swift_code || ''}  IBAN: ${bank.iban_code || ''}`, 14, y);
       y += 8;
     });
-    doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
+    doc.save('invoice.pdf');
   };
 
   if (loading) {
