@@ -10,3 +10,5 @@ PO#
 Quantity of service
 NRC
 MRC
+
+pick which bank to receive payment

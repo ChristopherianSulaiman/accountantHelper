@@ -19,6 +19,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -43,6 +44,7 @@ const Print = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [customer, setCustomer] = useState(null);
   const [service, setService] = useState(null);
+  const [includeNRC, setIncludeNRC] = useState(true);
 
   useEffect(() => {
     fetchInvoices();
@@ -198,12 +200,15 @@ const Print = () => {
     doc.setFont('helvetica', 'bold');
     doc.text('Charges', 14, y);
     y += 7;
+    if (includeNRC && service.nrc) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('NRC (One-time Setup)', 14, y);
+      doc.text(`Rp ${parseFloat(service.nrc).toLocaleString()}`, 80, y, { align: 'right' });
+      y += 7;
+    }
     doc.setFont('helvetica', 'normal');
-    doc.text('NRC (One-time Setup):', 14, y);
-    doc.text(service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '', 80, y);
-    y += 7;
-    doc.text('MRC (Monthly Recurring):', 14, y);
-    doc.text(service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '', 80, y);
+    doc.text('MRC (Monthly Recurring)', 14, y);
+    doc.text(service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '', 80, y, { align: 'right' });
     y += 10;
     // Banks
     doc.setFont('helvetica', 'bold');
@@ -353,6 +358,11 @@ const Print = () => {
               <Typography variant="body2" color="text.secondary">Loading preview...</Typography>
             )}
           </Box>
+
+          <FormControlLabel
+            control={<Checkbox checked={includeNRC} onChange={e => setIncludeNRC(e.target.checked)} />}
+            label="Include NRC (One-time Setup)"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
