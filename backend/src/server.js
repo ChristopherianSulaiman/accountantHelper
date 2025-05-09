@@ -389,6 +389,57 @@ app.post('/api/banks', async (req, res) => {
   }
 });
 
+// Update bank endpoint
+app.put('/api/banks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      bank_name,
+      bank_address,
+      bank_code,
+      swift_code,
+      iban_code,
+      currency,
+      acc_number,
+      type
+    } = req.body;
+
+    const [result] = await pool.execute(
+      'UPDATE banks SET bank_name = ?, bank_address = ?, bank_code = ?, swift_code = ?, iban_code = ?, currency = ?, acc_number = ?, type = ? WHERE bank_id = ?',
+      [bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Bank not found' });
+    }
+
+    res.json({
+      message: 'Bank updated successfully',
+      bankId: id
+    });
+  } catch (error) {
+    console.error('Error updating bank:', error);
+    res.status(500).json({ message: 'Error updating bank' });
+  }
+});
+
+app.delete('/api/banks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await pool.execute(
+      'DELETE FROM banks WHERE bank_id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Bank not found' });
+    }
+    res.json({ message: 'Bank deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting bank:', error);
+    res.status(500).json({ message: 'Error deleting bank' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
