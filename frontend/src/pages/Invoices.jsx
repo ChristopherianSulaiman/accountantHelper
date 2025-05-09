@@ -97,6 +97,7 @@ const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [services, setServices] = useState([]);
+  const [allServices, setAllServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showError, setShowError] = useState(false);
@@ -117,6 +118,7 @@ const Invoices = () => {
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
+    fetchAllServices();
   }, []);
 
   useEffect(() => {
@@ -152,6 +154,49 @@ const Invoices = () => {
       setError('Failed to load customers. Please try again.');
     }
   };
+
+  const fetchAllServices = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/services');
+      setAllServices(response.data);
+    } catch (error) {
+      console.error('Error fetching all services:', error);
+    }
+  };
+
+  // Filter services for selected customer
+  useEffect(() => {
+    if (formData.cust_id) {
+      const filtered = allServices.filter(service => 
+        String(service.cust_id).trim() === String(formData.cust_id).trim()
+      );
+      console.log('Filtering services for customer:', formData.cust_id, filtered);
+      setServices(filtered);
+      // Do not set service_id here
+    } else {
+      setServices([]);
+      setFormData(prev => {
+        if (prev.service_id !== '') {
+          return { ...prev, service_id: '' };
+        }
+        return prev;
+      });
+    }
+  }, [formData.cust_id, allServices]);
+
+  // New effect: set service_id after services are filtered and available
+  useEffect(() => {
+    if (editingInvoice && services.length > 0) {
+      // Only set if not already set and the service exists in the filtered list
+      const exists = services.some(s => String(s.service_id) === String(editingInvoice.service_id));
+      setFormData(prev => {
+        if (exists && prev.service_id !== String(editingInvoice.service_id)) {
+          return { ...prev, service_id: String(editingInvoice.service_id) };
+        }
+        return prev;
+      });
+    }
+  }, [editingInvoice, services]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -417,7 +462,7 @@ const Invoices = () => {
                 />
               </Grid>
               <Grid item xs={12} md={8}>
-                <FormControl fullWidth required>
+                <FormControl fullWidth required disabled={!formData.cust_id}>
                   <InputLabel id="service-label">Service</InputLabel>
                   <Select
                     labelId="service-label"
