@@ -54,8 +54,8 @@ const ServiceRow = ({ service, onDelete }) => {
         <TableCell>{service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}</TableCell>
         <TableCell>{service.service_name}</TableCell>
         <TableCell>{service.cust_name}</TableCell>
-        <TableCell align="right">${parseFloat(service.nrc).toFixed(2)}</TableCell>
-        <TableCell align="right">${parseFloat(service.mrc).toFixed(2)}</TableCell>
+        <TableCell align="right">Rp{parseFloat(service.nrc).toFixed(2)}</TableCell>
+        <TableCell align="right">Rp{parseFloat(service.mrc).toFixed(2)}</TableCell>
         <TableCell>{formatDate(service.start_date)}</TableCell>
         <TableCell>{formatDate(service.end_date)}</TableCell>
         <TableCell align="center">
@@ -92,8 +92,8 @@ const ServiceRow = ({ service, onDelete }) => {
                     <TableCell>{service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}</TableCell>
                     <TableCell>{service.service_name}</TableCell>
                     <TableCell>{service.cust_name}</TableCell>
-                    <TableCell align="right">${parseFloat(service.nrc).toFixed(2)}</TableCell>
-                    <TableCell align="right">${parseFloat(service.mrc).toFixed(2)}</TableCell>
+                    <TableCell align="right">Rp{parseFloat(service.nrc).toFixed(2)}</TableCell>
+                    <TableCell align="right">Rp{parseFloat(service.mrc).toFixed(2)}</TableCell>
                     <TableCell>{formatDate(service.start_date)}</TableCell>
                     <TableCell>{formatDate(service.end_date)}</TableCell>
                   </TableRow>
