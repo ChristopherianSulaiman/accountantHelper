@@ -55,6 +55,11 @@ const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
     }
   };
 
+  const handleEdit = () => {
+    console.log('Invoice data in row:', invoice); // Debug log
+    onEdit(invoice);
+  };
+
   return (
     <TableRow>
       <TableCell>{invoice.invoice_number}</TableCell>
@@ -77,7 +82,7 @@ const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
         </Typography>
       </TableCell>
       <TableCell align="center">
-        <IconButton size="small" color="primary" onClick={onEdit}>
+        <IconButton size="small" color="primary" onClick={handleEdit}>
           <EditIcon />
         </IconButton>
         <IconButton size="small" color="error" onClick={onDelete}>
@@ -107,17 +112,12 @@ const Invoices = () => {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null);
 
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
   }, []);
-
-  useEffect(() => {
-    if (formData.cust_id) {
-      fetchCustomerServices(formData.cust_id);
-    }
-  }, [formData.cust_id]);
 
   useEffect(() => {
     if (error) {
@@ -153,17 +153,6 @@ const Invoices = () => {
     }
   };
 
-  const fetchCustomerServices = async (custId) => {
-    try {
-      const response = await axios.get(`http://localhost:3000/api/services`);
-      const customerServices = response.data.filter(service => service.cust_id === parseInt(custId));
-      setServices(customerServices);
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      setError('Failed to load services. Please try again.');
-    }
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -174,25 +163,67 @@ const Invoices = () => {
 
   const handleEdit = async (invoice) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/services`);
-      const customerServices = response.data.filter(service => service.cust_id === parseInt(invoice.cust_id));
+      console.log('Editing invoice:', invoice); // Debug log
+
+      // Fetch all customers and services
+      const [customersResponse, servicesResponse] = await Promise.all([
+        axios.get('http://localhost:3000/api/customers'),
+        axios.get('http://localhost:3000/api/services')
+      ]);
+
+      // Find the customer ID based on the customer name
+      const customer = customersResponse.data.find(c => c.cust_name === invoice.cust_name);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
+      // Filter services for this customer
+      const customerServices = servicesResponse.data.filter(service => 
+        service.cust_id === customer.cust_id
+      );
+      console.log('Filtered services for customer:', customerServices);
       setServices(customerServices);
-      
+
+      // Find the service ID based on the service name
+      const service = customerServices.find(s => s.service_name === invoice.service_name);
+      // Don't throw if not found, just set to ''
+      // if (!service) {
+      //   throw new Error('Service not found');
+      // }
+
+      // Set the editing invoice
       setEditingInvoice(invoice);
-      setFormData({
-        invoice_number: invoice.invoice_number,
-        cust_id: invoice.cust_id,
-        customer_po: invoice.customer_po,
-        service_id: invoice.service_id,
-        qty: invoice.qty,
-        status: invoice.status
+
+      // Set pending form data, to be set after services are loaded
+      setPendingFormData({
+        invoice_number: invoice.invoice_number || '',
+        cust_id: customer.cust_id.toString(),
+        customer_po: invoice.customer_po || '',
+        service_id: service ? service.service_id.toString() : '',
+        qty: invoice.qty || 1,
+        status: invoice.status || 'pending'
       });
+
+      // Show the form after all data is set
       setShowForm(true);
     } catch (error) {
-      console.error('Error fetching services:', error);
-      setError('Failed to load services. Please try again.');
+      console.error('Error in handleEdit:', error);
+      setError('Failed to load invoice data. Please try again.');
     }
   };
+
+  // When services or pendingFormData changes, set formData if pendingFormData exists
+  useEffect(() => {
+    if (pendingFormData && services.length > 0) {
+      // Only set service_id if it exists in the new services list, else set to ''
+      const validService = services.find(s => s.service_id.toString() === pendingFormData.service_id);
+      setFormData({
+        ...pendingFormData,
+        service_id: validService ? pendingFormData.service_id : ''
+      });
+      setPendingFormData(null);
+    }
+  }, [services, pendingFormData]);
 
   const handleCancel = () => {
     setShowForm(false);
@@ -356,10 +387,13 @@ const Invoices = () => {
                     value={formData.cust_id}
                     onChange={handleInputChange}
                     label="Customer"
+                    sx={{ minWidth: '300px' }}
                     MenuProps={{
                       PaperProps: {
                         style: {
-                          maxHeight: 300
+                          maxHeight: 400,
+                          width: 'auto',
+                          minWidth: '300px'
                         }
                       }
                     }}
@@ -391,10 +425,13 @@ const Invoices = () => {
                     value={formData.service_id}
                     onChange={handleInputChange}
                     label="Service"
+                    sx={{ minWidth: '300px' }}
                     MenuProps={{
                       PaperProps: {
                         style: {
-                          maxHeight: 300
+                          maxHeight: 400,
+                          width: 'auto',
+                          minWidth: '300px'
                         }
                       }
                     }}
@@ -499,8 +536,8 @@ const Invoices = () => {
                     <InvoiceRow 
                       key={invoice.invoice_id} 
                       invoice={invoice} 
-                      onEdit={() => handleEdit(invoice)}
-                      onDelete={() => handleDeleteClick(invoice)}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteClick}
                     />
                   ))
                 )}
