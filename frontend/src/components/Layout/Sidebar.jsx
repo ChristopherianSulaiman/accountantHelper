@@ -20,6 +20,8 @@ import {
   Settings as SettingsIcon,
   AttachMoney as AttachMoneyIcon,
   Build as BuildIcon,
+  Print as PrintIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -30,6 +32,8 @@ const menuItems = [
   { text: 'Services', icon: <BuildIcon />, path: '/services' },
   { text: 'Banks', icon: <AccountBalanceIcon />, path: '/banks' },
   { text: 'Customers', icon: <PeopleIcon />, path: '/customers' },
+  { text: 'Print', icon: <PrintIcon />, path: '/print' },
+  { text: 'Sample Bill', icon: <DescriptionIcon />, path: '/sample-bill' },
 ];
 
 const Sidebar = () => {

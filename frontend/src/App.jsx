@@ -8,6 +8,8 @@ import NewInvoice from './pages/NewInvoice';
 import Services from './pages/Services';
 import Customers from './pages/Customers';
 import Banks from './pages/Banks';
+import Print from './pages/Print';
+import SampleBill from './pages/SampleBill';
 
 // Create a theme instance
 const theme = createTheme({
@@ -53,6 +55,8 @@ function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/banks" element={<Banks />} />
+            <Route path="/print" element={<Print />} />
+            <Route path="/sample-bill" element={<SampleBill />} />
             {/* Add more routes as needed */}
           </Routes>
         </MainLayout>
