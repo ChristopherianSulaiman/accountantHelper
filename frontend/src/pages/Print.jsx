@@ -20,9 +20,12 @@ import {
   Select,
   MenuItem,
   FormControlLabel,
+  Collapse,
 } from '@mui/material';
 import {
   Print as PrintIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import Dialog from '@mui/material/Dialog';
@@ -273,6 +276,81 @@ const Print = () => {
     );
   }
 
+  function InvoiceRow({ invoice, onPrint }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+          <TableCell>
+            <IconButton
+              aria-label="expand row"
+              size="small"
+              onClick={() => setOpen(!open)}
+            >
+              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+            </IconButton>
+          </TableCell>
+          <TableCell>{invoice.invoice_number}</TableCell>
+          <TableCell>{invoice.cust_name}</TableCell>
+          <TableCell>
+            <Typography
+              sx={{
+                color:
+                  invoice.status === 'paid' ? 'success.main' :
+                  invoice.status === 'pending' ? 'warning.main' :
+                  invoice.status === 'overdue' ? 'error.main' :
+                  'text.secondary',
+                textTransform: 'capitalize'
+              }}
+            >
+              {invoice.status}
+            </Typography>
+          </TableCell>
+          <TableCell align="center">
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => onPrint(invoice)}
+            >
+              <PrintIcon />
+            </IconButton>
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+            <Collapse in={open} timeout="auto" unmountOnExit>
+              <Box sx={{ margin: 1 }}>
+                <Typography variant="h6" gutterBottom component="div">
+                  Services
+                </Typography>
+                <Table size="small" aria-label="services">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Service Name</TableCell>
+                      <TableCell>Type</TableCell>
+                      <TableCell>Quantity</TableCell>
+                      <TableCell>Customer PO</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invoice.services && invoice.services.map((service) => (
+                      <TableRow key={service.service_id}>
+                        <TableCell>{service.service_name}</TableCell>
+                        <TableCell>{service.service_type}</TableCell>
+                        <TableCell>{service.qty}</TableCell>
+                        <TableCell>{service.customer_po}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+            </Collapse>
+          </TableCell>
+        </TableRow>
+      </>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -319,11 +397,9 @@ const Print = () => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell />
                   <TableCell>Invoice Number</TableCell>
                   <TableCell>Customer</TableCell>
-                  <TableCell>Customer PO</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
@@ -331,42 +407,13 @@ const Print = () => {
               <TableBody>
                 {filteredInvoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={5} align="center">
                       No invoices available
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.invoice_id}>
-                      <TableCell>{invoice.invoice_number}</TableCell>
-                      <TableCell>{invoice.cust_name}</TableCell>
-                      <TableCell>{invoice.customer_po}</TableCell>
-                      <TableCell>{invoice.service_name}</TableCell>
-                      <TableCell align="right">{invoice.qty}</TableCell>
-                      <TableCell>
-                        <Typography
-                          sx={{
-                            color: 
-                              invoice.status === 'paid' ? 'success.main' :
-                              invoice.status === 'pending' ? 'warning.main' :
-                              invoice.status === 'overdue' ? 'error.main' :
-                              'text.secondary',
-                            textTransform: 'capitalize'
-                          }}
-                        >
-                          {invoice.status}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handlePrint(invoice)}
-                        >
-                          <PrintIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
+                    <InvoiceRow key={invoice.invoice_id} invoice={invoice} onPrint={handlePrint} />
                   ))
                 )}
               </TableBody>
