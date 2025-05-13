@@ -266,15 +266,15 @@ const Print = () => {
       services.forEach(service => {
         const dates = serviceDates[service.service_id] || {};
         const period = dates.start_date && dates.end_date ? `${dates.start_date.split('-').reverse().join('/')} - ${dates.end_date.split('-').reverse().join('/')}` : '';
-        // Service description row (indented)
-        tableRows.push([
-          { content: `  ${service.service_name}`, styles: { colSpan: 5, halign: 'left' } }, '', '', '', ''
-        ]);
-        // MRC row
+        // Service row: name, period, unit price, qty, amount
         const mrcAmount = service.mrc ? parseFloat(service.mrc) * service.qty : 0;
         subTotal += mrcAmount;
         tableRows.push([
-          '', period, `Rp ${service.mrc ? parseFloat(service.mrc).toLocaleString() : ''}`, service.qty || '', `Rp ${mrcAmount ? mrcAmount.toLocaleString() : ''}`
+          { content: service.service_name, styles: { halign: 'left' } },
+          period,
+          `Rp ${service.mrc ? parseFloat(service.mrc).toLocaleString() : ''}`,
+          service.qty || '',
+          `Rp ${mrcAmount ? mrcAmount.toLocaleString() : ''}`
         ]);
         // NRC row (if included)
         if (nrcIncluded[service.service_id] && service.nrc) {
