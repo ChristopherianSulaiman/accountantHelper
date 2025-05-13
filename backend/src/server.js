@@ -175,6 +175,7 @@ app.get('/api/invoices', async (req, res) => {
         i.invoice_number,
         i.customer_po,
         c.cust_name,
+        i.cust_id,
         s.service_name,
         s.service_type,
         i.qty,
@@ -184,6 +185,9 @@ app.get('/api/invoices', async (req, res) => {
       LEFT JOIN services s ON i.service_id = s.service_id
       ORDER BY i.invoice_id DESC
     `);
+
+    // Debug log
+    console.log('Fetched invoices:', invoices);
 
     res.json(invoices);
   } catch (error) {

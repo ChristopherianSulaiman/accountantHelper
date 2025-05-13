@@ -33,6 +33,15 @@ import Checkbox from '@mui/material/Checkbox';
 import ListItemText from '@mui/material/ListItemText';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTheme } from '@mui/material/styles';
+
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 const Print = () => {
   const [invoices, setInvoices] = useState([]);
@@ -45,9 +54,14 @@ const Print = () => {
   const [customer, setCustomer] = useState(null);
   const [service, setService] = useState(null);
   const [includeNRC, setIncludeNRC] = useState(true);
+  const [customers, setCustomers] = useState([]);
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const theme = useTheme();
 
   useEffect(() => {
     fetchInvoices();
+    fetchCustomers();
   }, []);
 
   const fetchInvoices = async () => {
@@ -59,6 +73,15 @@ const Print = () => {
       setError('Failed to load invoices. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await axios.get('http://localhost:3000/api/customers');
+      setCustomers(response.data);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
     }
   };
 
@@ -233,6 +256,15 @@ const Print = () => {
     doc.save('invoice.pdf');
   };
 
+  // Filtered invoices
+  const filteredInvoices = invoices.filter(inv => {
+    const customerMatch = customerFilter
+      ? String(inv.cust_id) === String(customerFilter)
+      : true;
+    const statusMatch = statusFilter ? inv.status === statusFilter : true;
+    return customerMatch && statusMatch;
+  });
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -245,6 +277,34 @@ const Print = () => {
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4">Print Invoices</Typography>
+      </Box>
+      {/* Filter controls */}
+      <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <FormControl sx={{ minWidth: 200 }} size="small">
+          <InputLabel>Customer</InputLabel>
+          <Select
+            value={customerFilter}
+            label="Customer"
+            onChange={e => setCustomerFilter(e.target.value)}
+          >
+            <MenuItem value="">All Customers</MenuItem>
+            {customers.map(c => (
+              <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ minWidth: 160 }} size="small">
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={statusFilter}
+            label="Status"
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            {statusOptions.map(opt => (
+              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       {error && (
@@ -269,14 +329,14 @@ const Print = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {invoices.length === 0 ? (
+                {filteredInvoices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center">
                       No invoices available
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice) => (
+                  filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.invoice_id}>
                       <TableCell>{invoice.invoice_number}</TableCell>
                       <TableCell>{invoice.cust_name}</TableCell>
