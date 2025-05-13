@@ -60,6 +60,7 @@ const Print = () => {
   const [customers, setCustomers] = useState([]);
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [nrcIncluded, setNrcIncluded] = useState({});
   const theme = useTheme();
 
   useEffect(() => {
@@ -142,6 +143,14 @@ const Print = () => {
     setSelectedInvoice(invoice);
     await fetchBanks();
     await fetchCustomerAndService(invoice);
+    // Initialize NRC inclusion for each service (default: true)
+    if (invoice.services) {
+      const nrcMap = {};
+      invoice.services.forEach(s => { nrcMap[s.service_id] = true; });
+      setNrcIncluded(nrcMap);
+    } else {
+      setNrcIncluded({});
+    }
     setShowDialog(true);
   };
 
@@ -166,8 +175,12 @@ const Print = () => {
     return dateStr.split('T')[0];
   };
 
+  const handleNrcCheckbox = (service_id) => {
+    setNrcIncluded(prev => ({ ...prev, [service_id]: !prev[service_id] }));
+  };
+
   const handlePrintPDF = () => {
-    if (!selectedInvoice || !customer || !service) return;
+    if (!selectedInvoice || !selectedInvoice.services || !customer) return;
     const doc = new jsPDF('p', 'mm', 'a4');
     // Header
     doc.setFontSize(18);
@@ -186,62 +199,67 @@ const Print = () => {
     doc.text(`PO #: ${selectedInvoice.customer_po}`, 160, 31);
     doc.text(`Period: ${formatDate(service.start_date)} - ${formatDate(service.end_date)}`, 14, 45);
     // Table
-    const tableColumn = [
-      'Description',
-      'Period',
-      'Unit Price',
-      'Qty',
-      'Amount',
-    ];
-    const tableRows = [
-      [
-        service.service_name || '',
-        `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
-        service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '',
-        selectedInvoice.qty || '',
-        service.mrc ? `Rp ${(parseFloat(service.mrc) * selectedInvoice.qty).toLocaleString()}` : '',
-      ],
-    ];
-    if (includeNRC && service.nrc) {
-      tableRows.push([
-        'Activation Fee',
-        `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
-        service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
-        '1',
-        service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
-      ]);
-    }
-    autoTable(doc, {
-      startY: 55,
-      head: [tableColumn],
-      body: tableRows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [255, 242, 0],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle',
-      },
-      bodyStyles: {
-        halign: 'left',
-        valign: 'middle',
-        fontSize: 11,
-      },
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 15, halign: 'right' },
-        4: { cellWidth: 35, halign: 'right' },
-      },
-      styles: {
-        cellPadding: 2,
-        font: 'helvetica',
-      },
+    let y = 55;
+    selectedInvoice.services.forEach(service => {
+      // Table for each service
+      const tableColumn = [
+        'Description',
+        'Period',
+        'Unit Price',
+        'Qty',
+        'Amount',
+      ];
+      const tableRows = [
+        [
+          service.service_name || '',
+          `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
+          service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '',
+          service.qty || '',
+          service.mrc ? `Rp ${(parseFloat(service.mrc) * service.qty).toLocaleString()}` : '',
+        ],
+      ];
+      if (nrcIncluded[service.service_id] && service.nrc) {
+        tableRows.push([
+          'Activation Fee',
+          `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
+          service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
+          '1',
+          service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
+        ]);
+      }
+      autoTable(doc, {
+        startY: y,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [255, 242, 0],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center',
+          valign: 'middle',
+        },
+        bodyStyles: {
+          halign: 'left',
+          valign: 'middle',
+          fontSize: 11,
+        },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 15, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right' },
+        },
+        styles: {
+          cellPadding: 2,
+          font: 'helvetica',
+        },
+      });
+      y = doc.lastAutoTable.finalY + 10;
     });
     // Add payment instructions and bank details
-    let y = doc.lastAutoTable.finalY + 15;
+    y += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('All payment should be made in full Amount to PT. Digital Wireless Indonesia:', 14, y);
     y += 7;
@@ -471,10 +489,24 @@ const Print = () => {
             )}
           </Box>
 
-          <FormControlLabel
-            control={<Checkbox checked={includeNRC} onChange={e => setIncludeNRC(e.target.checked)} />}
-            label="Include NRC (One-time Setup)"
-          />
+          {/* Per-service NRC checkboxes */}
+          {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1">Include NRC (One-time Setup) for:</Typography>
+              {selectedInvoice.services.map(service => (
+                <FormControlLabel
+                  key={service.service_id}
+                  control={
+                    <Checkbox
+                      checked={!!nrcIncluded[service.service_id]}
+                      onChange={() => handleNrcCheckbox(service.service_id)}
+                    />
+                  }
+                  label={service.service_name}
+                />
+              ))}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
