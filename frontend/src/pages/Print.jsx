@@ -64,16 +64,22 @@ const Print = () => {
   const [nrcIncluded, setNrcIncluded] = useState({});
   const [serviceDates, setServiceDates] = useState({});
   const [dueDate, setDueDate] = useState('');
-  const [dateBilled, setDateBilled] = useState(() => {
-    const today = new Date();
-    return today.toISOString().slice(0, 10);
-  });
+  const [dateBilled, setDateBilled] = useState('');
+  const [nrcQty, setNrcQty] = useState({});
   const theme = useTheme();
 
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
   }, []);
+
+  // Auto-dismiss error after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const fetchInvoices = async () => {
     try {
@@ -150,28 +156,29 @@ const Print = () => {
     setSelectedInvoice(invoice);
     await fetchBanks();
     await fetchCustomerAndService(invoice);
-    // Initialize NRC inclusion for each service (default: true)
+    // Initialize NRC inclusion and NRC qty for each service (default: true, qty: 1)
     if (invoice.services) {
       const nrcMap = {};
+      const nrcQtyMap = {};
       const dateMap = {};
       invoice.services.forEach(s => {
         nrcMap[s.service_id] = true;
+        nrcQtyMap[s.service_id] = 1;
         dateMap[s.service_id] = {
           start_date: s.start_date ? s.start_date.slice(0, 10) : '',
           end_date: s.end_date ? s.end_date.slice(0, 10) : '',
         };
       });
       setNrcIncluded(nrcMap);
+      setNrcQty(nrcQtyMap);
       setServiceDates(dateMap);
     } else {
       setNrcIncluded({});
+      setNrcQty({});
       setServiceDates({});
     }
     setDueDate('');
-    setDateBilled(() => {
-      const today = new Date();
-      return today.toISOString().slice(0, 10);
-    });
+    setDateBilled('');
     setShowDialog(true);
   };
 
@@ -210,10 +217,18 @@ const Print = () => {
     setNrcIncluded(prev => ({ ...prev, [service_id]: !prev[service_id] }));
   };
 
+  const handleNrcQtyChange = (service_id, value) => {
+    setNrcQty(prev => ({ ...prev, [service_id]: value }));
+  };
+
   const handlePrintPDF = () => {
     if (!selectedInvoice || !selectedInvoice.services || !customer) return;
     if (!dueDate || !dateBilled) {
       setError('Please enter both Due Date and Date Billed.');
+      return;
+    }
+    if (!selectedBanks || selectedBanks.length === 0) {
+      setError('Please select at least one bank before downloading.');
       return;
     }
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -278,10 +293,11 @@ const Print = () => {
         ]);
         // NRC row (if included)
         if (nrcIncluded[service.service_id] && service.nrc) {
-          const nrcAmount = parseFloat(service.nrc) * 1;
+          const qty = Number(nrcQty[service.service_id]) || 1;
+          const nrcAmount = parseFloat(service.nrc) * qty;
           subTotal += nrcAmount;
           tableRows.push([
-            'Activation Fee', 'One Time', `Rp ${parseFloat(service.nrc).toLocaleString()}`, '1', `Rp ${parseFloat(service.nrc).toLocaleString()}`
+            'Activation Fee', 'One Time', `Rp ${parseFloat(service.nrc).toLocaleString()}`, String(qty), `Rp ${nrcAmount.toLocaleString()}`
           ]);
         }
       });
@@ -523,6 +539,12 @@ const Print = () => {
       <Dialog open={showDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
         <DialogTitle>Print Invoice</DialogTitle>
         <DialogContent>
+          {/* Error message inside dialog */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           {/* Bank Multi-Select */}
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel id="bank-select-label">Select Bank(s)</InputLabel>
@@ -547,27 +569,6 @@ const Print = () => {
             </Select>
           </FormControl>
 
-          {/* Invoice Preview */}
-          <Box sx={{ p: 2, border: '1px solid #eee', borderRadius: 2, background: '#fafafa', mb: 2 }}>
-            <Typography variant="h6">Invoice Preview</Typography>
-            {selectedInvoice && customer && service ? (
-              <Box>
-                <Typography variant="subtitle1"><b>Customer:</b> {customer.cust_name}</Typography>
-                <Typography variant="subtitle1"><b>Address:</b> {customer.cust_address}</Typography>
-                <Typography variant="subtitle1"><b>Invoice #:</b> {selectedInvoice.invoice_number}</Typography>
-                <Typography variant="subtitle1"><b>PO #:</b> {selectedInvoice.customer_po}</Typography>
-                <Typography variant="subtitle1"><b>Service:</b> {service.service_name}</Typography>
-                <Typography variant="subtitle1"><b>Period:</b> {service.start_date} - {service.end_date}</Typography>
-                <Typography variant="subtitle1"><b>Quantity:</b> {selectedInvoice.qty}</Typography>
-                <Typography variant="subtitle1"><b>NRC:</b> {service.nrc}</Typography>
-                <Typography variant="subtitle1"><b>MRC:</b> {service.mrc}</Typography>
-                <Typography variant="subtitle1"><b>Banks:</b> {banks.filter(b => selectedBanks.includes(b.bank_id)).map(b => b.bank_name).join(', ')}</Typography>
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">Loading preview...</Typography>
-            )}
-          </Box>
-
           {/* Invoice Due Date and Date Billed */}
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
             <TextField
@@ -577,6 +578,7 @@ const Print = () => {
               onChange={e => setDueDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
               required
+              autoComplete="off"
             />
             <TextField
               label="Date Billed"
@@ -585,6 +587,7 @@ const Print = () => {
               onChange={e => setDateBilled(e.target.value)}
               InputLabelProps={{ shrink: true }}
               required
+              autoComplete="off"
             />
           </Box>
           {/* Per-service date pickers */}
@@ -614,21 +617,33 @@ const Print = () => {
               ))}
             </Box>
           )}
-          {/* Per-service NRC checkboxes */}
+          {/* Per-service NRC checkboxes and NRC qty */}
           {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="subtitle1">Include NRC (One-time Setup) for:</Typography>
               {selectedInvoice.services.map(service => (
-                <FormControlLabel
-                  key={service.service_id}
-                  control={
-                    <Checkbox
-                      checked={!!nrcIncluded[service.service_id]}
-                      onChange={() => handleNrcCheckbox(service.service_id)}
+                <Box key={service.service_id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={!!nrcIncluded[service.service_id]}
+                        onChange={() => handleNrcCheckbox(service.service_id)}
+                      />
+                    }
+                    label={service.service_name}
+                  />
+                  {nrcIncluded[service.service_id] && service.nrc && (
+                    <TextField
+                      label="NRC Qty"
+                      type="number"
+                      size="small"
+                      value={nrcQty[service.service_id] || 1}
+                      onChange={e => handleNrcQtyChange(service.service_id, e.target.value)}
+                      inputProps={{ min: 1, step: 1 }}
+                      sx={{ width: 100 }}
                     />
-                  }
-                  label={service.service_name}
-                />
+                  )}
+                </Box>
               ))}
             </Box>
           )}
