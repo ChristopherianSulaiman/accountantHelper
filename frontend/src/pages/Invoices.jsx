@@ -65,8 +65,20 @@ const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
       <TableCell>{invoice.invoice_number}</TableCell>
       <TableCell>{invoice.cust_name}</TableCell>
       <TableCell>{invoice.customer_po}</TableCell>
-      <TableCell>{invoice.service_name}</TableCell>
-      <TableCell align="right">{invoice.qty}</TableCell>
+      <TableCell>
+        {invoice.services && invoice.services.length > 0
+          ? invoice.services.map(s => (
+              <div key={s.service_id}>
+                {s.service_name} (Qty: {s.qty}, PO: {s.customer_po || '-'})
+              </div>
+            ))
+          : '-'}
+      </TableCell>
+      <TableCell align="right">
+        {invoice.services && invoice.services.length > 0
+          ? invoice.services.map(s => s.qty).join(', ')
+          : '-'}
+      </TableCell>
       <TableCell>
         <Typography
           sx={{
@@ -106,9 +118,7 @@ const Invoices = () => {
   const [formData, setFormData] = useState({
     invoice_number: '',
     cust_id: '',
-    customer_po: '',
-    service_id: '',
-    qty: 1,
+    services: [], // Array of {service_id, qty, customer_po}
     status: 'pending'
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -176,8 +186,8 @@ const Invoices = () => {
     } else {
       setServices([]);
       setFormData(prev => {
-        if (prev.service_id !== '') {
-          return { ...prev, service_id: '' };
+        if (prev.services.length > 0) {
+          return { ...prev, services: [] };
         }
         return prev;
       });
@@ -190,8 +200,8 @@ const Invoices = () => {
       // Only set if not already set and the service exists in the filtered list
       const exists = services.some(s => String(s.service_id) === String(editingInvoice.service_id));
       setFormData(prev => {
-        if (exists && prev.service_id !== String(editingInvoice.service_id)) {
-          return { ...prev, service_id: String(editingInvoice.service_id) };
+        if (exists && prev.services.length === 0) {
+          return { ...prev, services: [{ service_id: editingInvoice.service_id, qty: editingInvoice.qty || 1, customer_po: editingInvoice.customer_po || '' }] };
         }
         return prev;
       });
@@ -203,6 +213,39 @@ const Invoices = () => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // Handle multi-select service change
+  const handleServiceChange = (event) => {
+    const value = event.target.value;
+    // Keep existing qty and customer_po for already selected services, default to 1 and empty for new
+    setFormData(prev => ({
+      ...prev,
+      services: value.map(service_id => {
+        const existing = prev.services.find(s => s.service_id === service_id);
+        return existing ? existing : { service_id, qty: 1, customer_po: '' };
+      })
+    }));
+  };
+
+  // Handle quantity change for a service
+  const handleServiceQtyChange = (service_id, qty) => {
+    setFormData(prev => ({
+      ...prev,
+      services: prev.services.map(s =>
+        s.service_id === service_id ? { ...s, qty: qty < 1 ? 1 : qty } : s
+      )
+    }));
+  };
+
+  // Handle PO number change for a service
+  const handleServicePOChange = (service_id, customer_po) => {
+    setFormData(prev => ({
+      ...prev,
+      services: prev.services.map(s =>
+        s.service_id === service_id ? { ...s, customer_po } : s
+      )
     }));
   };
 
@@ -243,9 +286,7 @@ const Invoices = () => {
       setPendingFormData({
         invoice_number: invoice.invoice_number || '',
         cust_id: customer.cust_id.toString(),
-        customer_po: invoice.customer_po || '',
-        service_id: service ? service.service_id.toString() : '',
-        qty: invoice.qty || 1,
+        services: invoice.services || [],
         status: invoice.status || 'pending'
       });
 
@@ -261,10 +302,14 @@ const Invoices = () => {
   useEffect(() => {
     if (pendingFormData && services.length > 0) {
       // Only set service_id if it exists in the new services list, else set to ''
-      const validService = services.find(s => s.service_id.toString() === pendingFormData.service_id);
+      const validServices = services.filter(s => pendingFormData.services.some(ps => ps.service_id === s.service_id));
       setFormData({
         ...pendingFormData,
-        service_id: validService ? pendingFormData.service_id : ''
+        services: validServices.map(s => ({
+          service_id: s.service_id,
+          qty: pendingFormData.services.find(ps => ps.service_id === s.service_id)?.qty || 1,
+          customer_po: pendingFormData.services.find(ps => ps.service_id === s.service_id)?.customer_po || ''
+        }))
       });
       setPendingFormData(null);
     }
@@ -276,9 +321,7 @@ const Invoices = () => {
     setFormData({
       invoice_number: '',
       cust_id: '',
-      customer_po: '',
-      service_id: '',
-      qty: 1,
+      services: [],
       status: 'pending'
     });
   };
@@ -286,19 +329,27 @@ const Invoices = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Prepare payload for backend
+      const payload = {
+        invoice_number: formData.invoice_number,
+        cust_id: formData.cust_id,
+        status: formData.status,
+        services: formData.services.map(s => ({ service_id: s.service_id, qty: s.qty, customer_po: s.customer_po }))
+      };
       if (editingInvoice) {
-        await axios.put(`http://localhost:3000/api/invoices/${editingInvoice.invoice_id}`, formData);
+        // TODO: Update logic for editing multi-service invoices
+        // For now, just show error
+        setError('Editing multi-service invoices is not yet implemented.');
+        return;
       } else {
-        await axios.post('http://localhost:3000/api/invoices', formData);
+        await axios.post('http://localhost:3000/api/invoices', payload);
       }
       setShowForm(false);
       setEditingInvoice(null);
       setFormData({
         invoice_number: '',
         cust_id: '',
-        customer_po: '',
-        service_id: '',
-        qty: '',
+        services: [],
         status: 'pending'
       });
       fetchInvoices();
@@ -360,9 +411,7 @@ const Invoices = () => {
             setFormData({
               invoice_number: '',
               cust_id: '',
-              customer_po: '',
-              service_id: '',
-              qty: 1,
+              services: [],
               status: 'pending'
             });
             setShowForm(!showForm);
@@ -451,25 +500,16 @@ const Invoices = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Customer PO"
-                  name="customer_po"
-                  value={formData.customer_po}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
               <Grid item xs={12} md={8}>
                 <FormControl fullWidth required disabled={!formData.cust_id}>
-                  <InputLabel id="service-label">Service</InputLabel>
+                  <InputLabel id="service-label">Service(s)</InputLabel>
                   <Select
                     labelId="service-label"
-                    name="service_id"
-                    value={formData.service_id}
-                    onChange={handleInputChange}
-                    label="Service"
+                    multiple
+                    name="services"
+                    value={formData.services.map(s => s.service_id)}
+                    onChange={handleServiceChange}
+                    label="Service(s)"
                     sx={{ minWidth: '300px' }}
                     MenuProps={{
                       PaperProps: {
@@ -489,18 +529,35 @@ const Invoices = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  name="qty"
-                  type="number"
-                  value={formData.qty}
-                  onChange={handleInputChange}
-                  required
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
+              {/* Per-service quantity and PO inputs */}
+              {formData.services.map((s, idx) => {
+                const service = services.find(serv => serv.service_id === s.service_id);
+                return (
+                  <Grid item xs={12} md={12} key={s.service_id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography sx={{ minWidth: 120 }}>
+                        {service ? service.service_name : 'Service'}
+                      </Typography>
+                      <TextField
+                        label="Quantity"
+                        type="number"
+                        value={s.qty}
+                        onChange={e => handleServiceQtyChange(s.service_id, parseInt(e.target.value, 10))}
+                        inputProps={{ min: 1 }}
+                        sx={{ width: 120 }}
+                        required
+                      />
+                      <TextField
+                        label="PO Number"
+                        value={s.customer_po || ''}
+                        onChange={e => handleServicePOChange(s.service_id, e.target.value)}
+                        sx={{ width: 180 }}
+                        required
+                      />
+                    </Box>
+                  </Grid>
+                );
+              })}
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
                   <InputLabel id="status-label">Status</InputLabel>
@@ -564,7 +621,7 @@ const Invoices = () => {
                   <TableCell>Customer</TableCell>
                   <TableCell>Customer PO</TableCell>
                   <TableCell>Service</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
+                  <TableCell>Quantity</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>

@@ -169,25 +169,30 @@ app.delete('/api/services/:id', async (req, res) => {
 // Get all invoices endpoint
 app.get('/api/invoices', async (req, res) => {
   try {
+    // Get all invoices
     const [invoices] = await pool.execute(`
       SELECT 
         i.invoice_id,
         i.invoice_number,
-        i.customer_po,
         c.cust_name,
         i.cust_id,
-        s.service_name,
-        s.service_type,
-        i.qty,
         i.status
       FROM invoices i
       LEFT JOIN customers c ON i.cust_id = c.cust_id
-      LEFT JOIN services s ON i.service_id = s.service_id
       ORDER BY i.invoice_id DESC
     `);
 
-    // Debug log
-    console.log('Fetched invoices:', invoices);
+    // For each invoice, get its services
+    for (const invoice of invoices) {
+      const [services] = await pool.execute(
+        `SELECT s.service_id, s.service_name, s.service_type, isv.qty, isv.customer_po, s.nrc, s.mrc, s.start_date, s.end_date
+         FROM invoice_services isv
+         LEFT JOIN services s ON isv.service_id = s.service_id
+         WHERE isv.invoice_id = ?`,
+        [invoice.invoice_id]
+      );
+      invoice.services = services;
+    }
 
     res.json(invoices);
   } catch (error) {
@@ -198,43 +203,39 @@ app.get('/api/invoices', async (req, res) => {
 
 // Create invoice endpoint
 app.post('/api/invoices', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const { invoice_number, cust_id, customer_po, service_id, qty, status } = req.body;
-    
+    const { invoice_number, cust_id, status, services } = req.body;
     // Check for duplicate invoice number
-    const [existingInvoice] = await pool.execute(
+    const [existingInvoice] = await conn.execute(
       'SELECT * FROM invoices WHERE invoice_number = ?',
       [invoice_number]
     );
-
     if (existingInvoice.length > 0) {
       return res.status(400).json({ 
         message: 'Invoice creation failed',
         error: 'An invoice with this invoice number already exists'
       });
     }
-
-    // Check for duplicate customer PO
-    const [existingPO] = await pool.execute(
-      'SELECT * FROM invoices WHERE customer_po = ?',
-      [customer_po]
+    // Insert invoice
+    const [result] = await conn.execute(
+      'INSERT INTO invoices (invoice_number, cust_id, status) VALUES (?, ?, ?)',
+      [invoice_number, cust_id, status]
     );
-
-    if (existingPO.length > 0) {
-      return res.status(400).json({ 
-        message: 'Invoice creation failed',
-        error: 'An invoice with this customer PO already exists'
-      });
+    const invoiceId = result.insertId;
+    // Insert services
+    console.log('Received services array:', services);
+    if (Array.isArray(services)) {
+      for (const svc of services) {
+        await conn.execute(
+          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po) VALUES (?, ?, ?, ?)',
+          [invoiceId, svc.service_id, svc.qty, svc.customer_po || null]
+        );
+      }
     }
-
-    const [result] = await pool.execute(
-      'INSERT INTO invoices (invoice_number, cust_id, customer_po, service_id, qty, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [invoice_number, cust_id, customer_po, service_id, qty, status]
-    );
-
     res.status(201).json({
       message: 'Invoice created successfully',
-      invoiceId: result.insertId
+      invoiceId
     });
   } catch (error) {
     console.error('Error creating invoice:', error);
@@ -242,6 +243,8 @@ app.post('/api/invoices', async (req, res) => {
       message: 'Invoice creation failed',
       error: 'An unexpected error occurred while creating the invoice'
     });
+  } finally {
+    conn.release();
   }
 });
 

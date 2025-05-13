@@ -341,8 +341,15 @@ const Print = () => {
                       <TableCell>{invoice.invoice_number}</TableCell>
                       <TableCell>{invoice.cust_name}</TableCell>
                       <TableCell>{invoice.customer_po}</TableCell>
-                      <TableCell>{invoice.service_name}</TableCell>
-                      <TableCell align="right">{invoice.qty}</TableCell>
+                      <TableCell colSpan={2}>
+                        {invoice.services && invoice.services.length > 0
+                          ? invoice.services.map(s => (
+                              <div key={s.service_id}>
+                                {s.service_name} (Qty: {s.qty})
+                              </div>
+                            ))
+                          : '-'}
+                      </TableCell>
                       <TableCell>
                         <Typography
                           sx={{
