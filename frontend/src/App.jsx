@@ -5,6 +5,7 @@ import MainLayout from './components/Layout/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Invoices from './pages/Invoices';
 import NewInvoice from './pages/NewInvoice';
+import EditInvoice from './pages/EditInvoice';
 import Services from './pages/Services';
 import Customers from './pages/Customers';
 import Banks from './pages/Banks';
@@ -52,6 +53,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/invoices/new" element={<NewInvoice />} />
+            <Route path="/invoices/edit/:id" element={<EditInvoice />} />
             <Route path="/services" element={<Services />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/banks" element={<Banks />} />

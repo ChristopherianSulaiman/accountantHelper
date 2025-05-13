@@ -27,7 +27,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar
+  Snackbar,
+  Chip,
+  Collapse
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -41,9 +43,11 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 import { format, parse } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
     try {
@@ -61,35 +65,74 @@ const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
   };
 
   return (
-    <TableRow>
-      <TableCell>{invoice.invoice_number}</TableCell>
-      <TableCell>{invoice.cust_name}</TableCell>
-      <TableCell>{invoice.customer_po}</TableCell>
-      <TableCell>{invoice.service_name}</TableCell>
-      <TableCell align="right">{invoice.qty}</TableCell>
-      <TableCell>
-        <Typography
-          sx={{
-            color: 
-              invoice.status === 'paid' ? 'success.main' :
-              invoice.status === 'pending' ? 'warning.main' :
-              invoice.status === 'overdue' ? 'error.main' :
-              'text.secondary',
-            textTransform: 'capitalize'
-          }}
-        >
-          {invoice.status}
-        </Typography>
-      </TableCell>
-      <TableCell align="center">
-        <IconButton size="small" color="primary" onClick={handleEdit}>
-          <EditIcon />
-        </IconButton>
-        <IconButton size="small" color="error" onClick={onDelete}>
-          <DeleteIcon />
-        </IconButton>
-      </TableCell>
-    </TableRow>
+    <React.Fragment>
+      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+        <TableCell>
+          <IconButton
+            aria-label="expand row"
+            size="small"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
+        <TableCell>{invoice.invoice_number}</TableCell>
+        <TableCell>{invoice.cust_name}</TableCell>
+        <TableCell>
+          <Chip
+            label={invoice.status}
+            color={
+              invoice.status === 'paid'
+                ? 'success'
+                : invoice.status === 'pending'
+                ? 'warning'
+                : invoice.status === 'overdue'
+                ? 'error'
+                : 'default'
+            }
+          />
+        </TableCell>
+        <TableCell align="center">
+          <IconButton size="small" color="primary" onClick={() => navigate(`/invoices/edit/${invoice.invoice_id}`)}>
+            <EditIcon />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={onDelete}>
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 1 }}>
+              <Typography variant="h6" gutterBottom component="div">
+                Services
+              </Typography>
+              <Table size="small" aria-label="services">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Service Name</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Quantity</TableCell>
+                    <TableCell>Customer PO</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {invoice.services.map((service) => (
+                    <TableRow key={service.service_id}>
+                      <TableCell>{service.service_name}</TableCell>
+                      <TableCell>{service.service_type}</TableCell>
+                      <TableCell>{service.qty}</TableCell>
+                      <TableCell>{service.customer_po}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </React.Fragment>
   );
 };
 
@@ -101,19 +144,9 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showError, setShowError] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState(null);
-  const [formData, setFormData] = useState({
-    invoice_number: '',
-    cust_id: '',
-    customer_po: '',
-    service_id: '',
-    qty: 1,
-    status: 'pending'
-  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
-  const [pendingFormData, setPendingFormData] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchInvoices();
@@ -128,7 +161,6 @@ const Invoices = () => {
         setShowError(false);
         setTimeout(() => setError(''), 300);
       }, 5000);
-
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -164,157 +196,9 @@ const Invoices = () => {
     }
   };
 
-  // Filter services for selected customer
-  useEffect(() => {
-    if (formData.cust_id) {
-      const filtered = allServices.filter(service => 
-        String(service.cust_id).trim() === String(formData.cust_id).trim()
-      );
-      console.log('Filtering services for customer:', formData.cust_id, filtered);
-      setServices(filtered);
-      // Do not set service_id here
-    } else {
-      setServices([]);
-      setFormData(prev => {
-        if (prev.service_id !== '') {
-          return { ...prev, service_id: '' };
-        }
-        return prev;
-      });
-    }
-  }, [formData.cust_id, allServices]);
-
-  // New effect: set service_id after services are filtered and available
-  useEffect(() => {
-    if (editingInvoice && services.length > 0) {
-      // Only set if not already set and the service exists in the filtered list
-      const exists = services.some(s => String(s.service_id) === String(editingInvoice.service_id));
-      setFormData(prev => {
-        if (exists && prev.service_id !== String(editingInvoice.service_id)) {
-          return { ...prev, service_id: String(editingInvoice.service_id) };
-        }
-        return prev;
-      });
-    }
-  }, [editingInvoice, services]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleEdit = async (invoice) => {
-    try {
-      console.log('Editing invoice:', invoice); // Debug log
-
-      // Fetch all customers and services
-      const [customersResponse, servicesResponse] = await Promise.all([
-        axios.get('http://localhost:3000/api/customers'),
-        axios.get('http://localhost:3000/api/services')
-      ]);
-
-      // Find the customer ID based on the customer name
-      const customer = customersResponse.data.find(c => c.cust_name === invoice.cust_name);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      // Filter services for this customer
-      const customerServices = servicesResponse.data.filter(service => 
-        service.cust_id === customer.cust_id
-      );
-      console.log('Filtered services for customer:', customerServices);
-      setServices(customerServices);
-
-      // Find the service ID based on the service name
-      const service = customerServices.find(s => s.service_name === invoice.service_name);
-      // Don't throw if not found, just set to ''
-      // if (!service) {
-      //   throw new Error('Service not found');
-      // }
-
-      // Set the editing invoice
-      setEditingInvoice(invoice);
-
-      // Set pending form data, to be set after services are loaded
-      setPendingFormData({
-        invoice_number: invoice.invoice_number || '',
-        cust_id: customer.cust_id.toString(),
-        customer_po: invoice.customer_po || '',
-        service_id: service ? service.service_id.toString() : '',
-        qty: invoice.qty || 1,
-        status: invoice.status || 'pending'
-      });
-
-      // Show the form after all data is set
-      setShowForm(true);
-    } catch (error) {
-      console.error('Error in handleEdit:', error);
-      setError('Failed to load invoice data. Please try again.');
-    }
-  };
-
-  // When services or pendingFormData changes, set formData if pendingFormData exists
-  useEffect(() => {
-    if (pendingFormData && services.length > 0) {
-      // Only set service_id if it exists in the new services list, else set to ''
-      const validService = services.find(s => s.service_id.toString() === pendingFormData.service_id);
-      setFormData({
-        ...pendingFormData,
-        service_id: validService ? pendingFormData.service_id : ''
-      });
-      setPendingFormData(null);
-    }
-  }, [services, pendingFormData]);
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingInvoice(null);
-    setFormData({
-      invoice_number: '',
-      cust_id: '',
-      customer_po: '',
-      service_id: '',
-      qty: 1,
-      status: 'pending'
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingInvoice) {
-        await axios.put(`http://localhost:3000/api/invoices/${editingInvoice.invoice_id}`, formData);
-      } else {
-        await axios.post('http://localhost:3000/api/invoices', formData);
-      }
-      setShowForm(false);
-      setEditingInvoice(null);
-      setFormData({
-        invoice_number: '',
-        cust_id: '',
-        customer_po: '',
-        service_id: '',
-        qty: '',
-        status: 'pending'
-      });
-      fetchInvoices();
-    } catch (error) {
-      console.error('Error saving invoice:', error);
-      if (error.response && error.response.data && error.response.data.error) {
-        setError(error.response.data.error);
-      } else {
-        setError(`Failed to ${editingInvoice ? 'update' : 'create'} invoice. Please try again.`);
-      }
-    }
-  };
-
-  const handleDeleteClick = (invoice) => {
-    setInvoiceToDelete(invoice);
-    setDeleteDialogOpen(true);
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setInvoiceToDelete(null);
   };
 
   const handleDeleteConfirm = async () => {
@@ -327,16 +211,6 @@ const Invoices = () => {
       console.error('Error deleting invoice:', error);
       setError('Failed to delete invoice. Please try again.');
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setInvoiceToDelete(null);
-  };
-
-  const handleCloseError = () => {
-    setShowError(false);
-    setTimeout(() => setError(''), 300);
   };
 
   if (loading) {
@@ -355,20 +229,9 @@ const Invoices = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => {
-            setEditingInvoice(null);
-            setFormData({
-              invoice_number: '',
-              cust_id: '',
-              customer_po: '',
-              service_id: '',
-              qty: 1,
-              status: 'pending'
-            });
-            setShowForm(!showForm);
-          }}
+          onClick={() => navigate('/invoices/new')}
         >
-          {showForm ? 'Cancel' : 'New Invoice'}
+          New Invoice
         </Button>
       </Box>
 
@@ -380,7 +243,7 @@ const Invoices = () => {
         <Alert
           severity="error"
           variant="filled"
-          onClose={handleCloseError}
+          onClose={() => setShowError(false)}
           sx={{
             width: '100%',
             '& .MuiAlert-message': {
@@ -396,7 +259,7 @@ const Invoices = () => {
               size="small"
               aria-label="close"
               color="inherit"
-              onClick={handleCloseError}
+              onClick={() => setShowError(false)}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -405,136 +268,6 @@ const Invoices = () => {
           {error}
         </Alert>
       </Snackbar>
-
-      {showForm && (
-        <Card sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            {editingInvoice ? 'Edit Invoice' : 'Add New Invoice'}
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Invoice Number"
-                  name="invoice_number"
-                  value={formData.invoice_number}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} md={8}>
-                <FormControl fullWidth required>
-                  <InputLabel id="customer-label">Customer</InputLabel>
-                  <Select
-                    labelId="customer-label"
-                    name="cust_id"
-                    value={formData.cust_id}
-                    onChange={handleInputChange}
-                    label="Customer"
-                    sx={{ minWidth: '300px' }}
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 400,
-                          width: 'auto',
-                          minWidth: '300px'
-                        }
-                      }
-                    }}
-                  >
-                    {customers.map((customer) => (
-                      <MenuItem key={customer.cust_id} value={customer.cust_id}>
-                        {customer.cust_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Customer PO"
-                  name="customer_po"
-                  value={formData.customer_po}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} md={8}>
-                <FormControl fullWidth required disabled={!formData.cust_id}>
-                  <InputLabel id="service-label">Service</InputLabel>
-                  <Select
-                    labelId="service-label"
-                    name="service_id"
-                    value={formData.service_id}
-                    onChange={handleInputChange}
-                    label="Service"
-                    sx={{ minWidth: '300px' }}
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 400,
-                          width: 'auto',
-                          minWidth: '300px'
-                        }
-                      }
-                    }}
-                  >
-                    {services.map((service) => (
-                      <MenuItem key={service.service_id} value={service.service_id}>
-                        {service.service_name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Quantity"
-                  name="qty"
-                  type="number"
-                  value={formData.qty}
-                  onChange={handleInputChange}
-                  required
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel id="status-label">Status</InputLabel>
-                  <Select
-                    labelId="status-label"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    label="Status"
-                  >
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="paid">Paid</MenuItem>
-                    <MenuItem value="overdue">Overdue</MenuItem>
-                    <MenuItem value="cancelled">Cancelled</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <Button type="submit" variant="contained" color="primary">
-                  {editingInvoice ? 'Update Invoice' : 'Create Invoice'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={handleCancel}
-                  sx={{ ml: 2 }}
-                >
-                  Cancel
-                </Button>
-              </Grid>
-            </Grid>
-          </form>
-        </Card>
-      )}
 
       <Dialog
         open={deleteDialogOpen}
@@ -560,11 +293,9 @@ const Invoices = () => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell />
                   <TableCell>Invoice Number</TableCell>
                   <TableCell>Customer</TableCell>
-                  <TableCell>Customer PO</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell align="right">Quantity</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
@@ -572,17 +303,20 @@ const Invoices = () => {
               <TableBody>
                 {invoices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={5} align="center">
                       No invoices available
                     </TableCell>
                   </TableRow>
                 ) : (
                   invoices.map((invoice) => (
                     <InvoiceRow 
-                      key={invoice.invoice_id} 
+                      key={invoice.invoice_id || invoice.id} 
                       invoice={invoice} 
-                      onEdit={handleEdit}
-                      onDelete={handleDeleteClick}
+                      onEdit={() => {}}
+                      onDelete={() => {
+                        setInvoiceToDelete(invoice);
+                        setDeleteDialogOpen(true);
+                      }}
                     />
                   ))
                 )}

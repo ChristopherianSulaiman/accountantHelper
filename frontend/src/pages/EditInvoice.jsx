@@ -11,8 +11,8 @@ import {
   Snackbar,
   Divider,
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -29,8 +29,9 @@ const statusOptions = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const NewInvoice = () => {
+const EditInvoice = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -40,6 +41,7 @@ const NewInvoice = () => {
   const [serviceDetails, setServiceDetails] = useState({}); // { service_id: { qty, customer_po } }
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [status, setStatus] = useState('pending');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch customers
@@ -48,8 +50,35 @@ const NewInvoice = () => {
       .then(setCustomers);
   }, []);
 
+  // Fetch invoice data on mount
   useEffect(() => {
-    // Fetch services for selected customer
+    async function fetchInvoice() {
+      setLoading(true);
+      try {
+        const res = await fetch(`http://localhost:3000/api/invoices/${id}`);
+        if (!res.ok) throw new Error('Invoice not found');
+        const data = await res.json();
+        setInvoiceNumber(data.invoice_number);
+        setSelectedCustomer(data.cust_id);
+        setStatus(data.status);
+        setSelectedServiceIds(data.services.map(s => s.service_id));
+        // Build serviceDetails
+        const details = {};
+        data.services.forEach(s => {
+          details[s.service_id] = { qty: s.qty, customer_po: s.customer_po };
+        });
+        setServiceDetails(details);
+      } catch (err) {
+        setError('Failed to load invoice.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInvoice();
+  }, [id]);
+
+  // Fetch services for selected customer
+  useEffect(() => {
     if (selectedCustomer) {
       fetch('http://localhost:3000/api/services')
         .then(res => res.json())
@@ -100,8 +129,8 @@ const NewInvoice = () => {
       }
     }
     try {
-      const response = await fetch('http://localhost:3000/api/invoices', {
-        method: 'POST',
+      const response = await fetch(`http://localhost:3000/api/invoices/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoice_number: invoiceNumber,
@@ -110,28 +139,31 @@ const NewInvoice = () => {
           services: selectedServiceIds.map(service_id => ({
             service_id,
             qty: serviceDetails[service_id].qty,
-            customer_po: serviceDetails[service_id].customer_po,
-            status
+            customer_po: serviceDetails[service_id].customer_po
           }))
         })
       });
       const responseData = await response.json();
       if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to create invoice');
+        throw new Error(responseData.error || responseData.message || 'Failed to update invoice');
       }
       setSuccess(true);
       setTimeout(() => {
         navigate('/invoices');
       }, 2000);
     } catch (err) {
-      setError(err.message || 'Failed to create invoice. Please try again.');
+      setError(err.message || 'Failed to update invoice. Please try again.');
     }
   };
+
+  if (loading) {
+    return <Typography>Loading...</Typography>;
+  }
 
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">New Invoice</Typography>
+        <Typography variant="h4">Edit Invoice</Typography>
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
@@ -250,7 +282,7 @@ const NewInvoice = () => {
               ))}
               <Grid item xs={12}>
                 <Button type="submit" variant="contained" color="primary">
-                  Create Invoice
+                  Update Invoice
                 </Button>
               </Grid>
             </Grid>
@@ -264,7 +296,7 @@ const NewInvoice = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert severity="success" sx={{ width: '100%' }}>
-          Invoice created successfully!
+          Invoice updated successfully!
         </Alert>
       </Snackbar>
       {error && (
@@ -274,4 +306,4 @@ const NewInvoice = () => {
   );
 };
 
-export default NewInvoice;
+export default EditInvoice; 

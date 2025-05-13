@@ -110,14 +110,19 @@ CREATE TABLE services (
 -- Invoice Table
 CREATE TABLE invoices (
     invoice_id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_number VARCHAR(50) NOT NULL UNIQUE,
+    cust_id INT NOT NULL,
+    status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (cust_id) REFERENCES customers(cust_id)
+);
+
+CREATE TABLE IF NOT EXISTS invoice_services (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    invoice_id INT NOT NULL,
     service_id INT NOT NULL,
     qty INT NOT NULL,
-    invoice_number VARCHAR(50) NOT NULL UNIQUE,
     customer_po VARCHAR(50) NOT NULL UNIQUE,
-    cust_id INT NOT NULL,
-    -- nrc DECIMAL(10,2) NOT NULL,
-    -- mrc DECIMAL(10,2) NOT NULL,
-    status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
-    FOREIGN KEY (service_id) REFERENCES services(service_id),
-    FOREIGN KEY (cust_id) REFERENCES customers(cust_id)
+    -- status ENUM('pending', 'paid', 'overdue', 'cancelled') DEFAULT 'pending',
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE
 );
