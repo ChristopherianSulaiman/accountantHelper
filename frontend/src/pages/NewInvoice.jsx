@@ -10,8 +10,13 @@ import {
   Alert,
   Snackbar,
   Divider,
+  Tooltip,
+  Paper,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon, Info as InfoIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import MenuItem from '@mui/material/MenuItem';
@@ -29,6 +34,10 @@ const statusOptions = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+const steps = ['Basic Information', 'Select Services', 'Review & Submit'];
+
+const invoiceNumberPattern = /^INV-\d{1,5}$/;
+
 const NewInvoice = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
@@ -36,10 +45,12 @@ const NewInvoice = () => {
   const [customers, setCustomers] = useState([]);
   const [services, setServices] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [selectedServiceIds, setSelectedServiceIds] = useState([]); // array of service_id
-  const [serviceDetails, setServiceDetails] = useState({}); // { service_id: { qty, customer_po } }
+  const [selectedServiceIds, setSelectedServiceIds] = useState([]);
+  const [serviceDetails, setServiceDetails] = useState({});
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [status, setStatus] = useState('pending');
+  const [activeStep, setActiveStep] = useState(0);
+  const [invoiceNumberError, setInvoiceNumberError] = useState('');
 
   useEffect(() => {
     // Fetch customers
@@ -85,10 +96,53 @@ const NewInvoice = () => {
     }));
   };
 
+  const validateInvoiceNumber = (value) => {
+    if (!invoiceNumberPattern.test(value)) {
+      setInvoiceNumberError('Invoice number must start with INV- and be followed by 1 to 5 digits (e.g., INV-12345).');
+      return false;
+    } else {
+      setInvoiceNumberError('');
+      return true;
+    }
+  };
+
+  const handleInvoiceNumberChange = (e) => {
+    setInvoiceNumber(e.target.value);
+    validateInvoiceNumber(e.target.value);
+  };
+
+  const handleNext = () => {
+    if (activeStep === 0) {
+      if (!invoiceNumber || !selectedCustomer) {
+        setError('Please fill in all required fields before proceeding.');
+        return;
+      }
+      if (!validateInvoiceNumber(invoiceNumber)) {
+        setError('Please enter a valid invoice number.');
+        return;
+      }
+    } else if (activeStep === 1) {
+      if (selectedServiceIds.length === 0) {
+        setError('Please select at least one service before proceeding.');
+        return;
+      }
+    }
+    setError('');
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!invoiceNumber || !selectedCustomer || selectedServiceIds.length === 0) {
       setError('Please fill all required fields and select at least one service.');
+      return;
+    }
+    if (!validateInvoiceNumber(invoiceNumber)) {
+      setError('Please enter a valid invoice number.');
       return;
     }
     // Validate each selected service
@@ -128,6 +182,212 @@ const NewInvoice = () => {
     }
   };
 
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+        return (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Invoice Number"
+                value={invoiceNumber}
+                onChange={handleInvoiceNumberChange}
+                required
+                placeholder="e.g., INV-12345"
+                helperText={invoiceNumberError || "Up to 8 characters, must start with INV- and be followed by 1 to 5 digits"}
+                error={!!invoiceNumberError}
+                InputProps={{
+                  endAdornment: (
+                    <Tooltip title="Invoice number must start with INV- and be followed by 1 to 5 digits (e.g., INV-12345)">
+                      <InfoIcon color="action" />
+                    </Tooltip>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={status}
+                  label="Status"
+                  onChange={e => setStatus(e.target.value)}
+                >
+                  {statusOptions.map(opt => (
+                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <FormControl fullWidth required>
+                <InputLabel htmlFor="customer-select" sx={{ background: '#fff', px: 0.5 }}>Customer</InputLabel>
+                <Select
+                  fullWidth
+                  labelId="customer-select-label"
+                  id="customer-select"
+                  value={selectedCustomer}
+                  label="Customer"
+                  onChange={e => {
+                    setSelectedCustomer(e.target.value);
+                    setSelectedServiceIds([]);
+                    setServiceDetails({});
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      style: {
+                        maxHeight: 300,
+                        minWidth: 350,
+                      },
+                    },
+                  }}
+                  input={<OutlinedInput label="Customer" />}
+                  sx={{ minWidth: 350 }}
+                >
+                  <MenuItem value="">Select Customer</MenuItem>
+                  {customers.map(c => (
+                    <MenuItem 
+                      key={c.cust_id} 
+                      value={c.cust_id}
+                      sx={{
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        minHeight: '48px',
+                        padding: '8px 16px'
+                      }}
+                    >
+                      {c.cust_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        );
+      case 1:
+        return (
+          <Box>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Available Services
+                <Tooltip title="Select one or more services to include in this invoice">
+                  <InfoIcon sx={{ ml: 1, fontSize: '1rem', verticalAlign: 'middle' }} />
+                </Tooltip>
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>Select Services</InputLabel>
+                <Select
+                  multiple
+                  value={selectedServiceIds}
+                  onChange={handleServiceSelect}
+                  input={<OutlinedInput label="Select Services" />}
+                  renderValue={selected =>
+                    services
+                      .filter(s => selected.includes(s.service_id))
+                      .map(s => s.service_name)
+                      .join(', ')
+                  }
+                >
+                  {services.map(s => (
+                    <MenuItem key={s.service_id} value={s.service_id}>
+                      <Checkbox checked={selectedServiceIds.includes(s.service_id)} />
+                      <ListItemText primary={s.service_name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            {selectedServiceIds.map(service_id => (
+              <Paper
+                key={service_id}
+                elevation={2}
+                sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}
+              >
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={5}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                      {services.find(s => s.service_id === service_id)?.service_name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      fullWidth
+                      label="Quantity"
+                      type="number"
+                      value={serviceDetails[service_id]?.qty || ''}
+                      onChange={e => handleServiceDetailChange(service_id, 'qty', e.target.value)}
+                      required
+                      InputProps={{
+                        inputProps: { min: 1 }
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Customer PO"
+                      value={serviceDetails[service_id]?.customer_po || ''}
+                      onChange={e => handleServiceDetailChange(service_id, 'customer_po', e.target.value)}
+                      required
+                      placeholder="Enter PO number"
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            ))}
+          </Box>
+        );
+      case 2:
+        return (
+          <Box>
+            <Typography variant="h6" gutterBottom>Review Invoice Details</Typography>
+            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" color="text.secondary">Invoice Number</Typography>
+                  <Typography variant="body1">{invoiceNumber}</Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" color="text.secondary">Customer</Typography>
+                  <Typography variant="body1">
+                    {customers.find(c => c.cust_id === selectedCustomer)?.cust_name}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" color="text.secondary">Status</Typography>
+                  <Typography variant="body1">{status}</Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+            <Typography variant="h6" gutterBottom>Selected Services</Typography>
+            {selectedServiceIds.map(service_id => (
+              <Paper key={service_id} elevation={2} sx={{ p: 2, mb: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle1" color="text.secondary">Service</Typography>
+                    <Typography variant="body1">
+                      {services.find(s => s.service_id === service_id)?.service_name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle1" color="text.secondary">Quantity</Typography>
+                    <Typography variant="body1">{serviceDetails[service_id]?.qty}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="subtitle1" color="text.secondary">Customer PO</Typography>
+                    <Typography variant="body1">{serviceDetails[service_id]?.customer_po}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            ))}
+          </Box>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -140,123 +400,52 @@ const NewInvoice = () => {
           Back to Invoices
         </Button>
       </Box>
+
+      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Invoice Number"
-                  value={invoiceNumber}
-                  onChange={e => setInvoiceNumber(e.target.value)}
-                  required
-                  placeholder="e.g., INV-001"
-                  helperText="Up to 8 characters, alphanumeric with hyphens"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Customer</InputLabel>
-                  <Select
-                    value={selectedCustomer}
-                    label="Customer"
-                    onChange={e => {
-                      setSelectedCustomer(e.target.value);
-                      setSelectedServiceIds([]); // Reset services
-                      setServiceDetails({});     // Reset service details
-                    }}
-                  >
-                    <MenuItem value="">Select Customer</MenuItem>
-                    {customers.map(c => (
-                      <MenuItem key={c.cust_id} value={c.cust_id}>{c.cust_name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={status}
-                    label="Status"
-                    onChange={e => setStatus(e.target.value)}
-                  >
-                    {statusOptions.map(opt => (
-                      <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ mr: 2 }}>Services</Typography>
-                  <FormControl sx={{ minWidth: 300 }}>
-                    <InputLabel>Select Services</InputLabel>
-                    <Select
-                      multiple
-                      value={selectedServiceIds}
-                      onChange={handleServiceSelect}
-                      input={<OutlinedInput label="Select Services" />}
-                      renderValue={selected =>
-                        services
-                          .filter(s => selected.includes(s.service_id))
-                          .map(s => s.service_name)
-                          .join(', ')
-                      }
-                    >
-                      {services.map(s => (
-                        <MenuItem key={s.service_id} value={s.service_id}>
-                          <Checkbox checked={selectedServiceIds.includes(s.service_id)} />
-                          <ListItemText primary={s.service_name} />
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Grid>
-              {selectedServiceIds.map(service_id => (
-                <Grid item xs={12} key={service_id}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={5}>
-                          <Typography><strong>Service:</strong> {services.find(s => s.service_id === service_id)?.service_name}</Typography>
-                        </Grid>
-                        <Grid item xs={12} md={3}>
-                          <TextField
-                            fullWidth
-                            label="Quantity"
-                            type="number"
-                            value={serviceDetails[service_id]?.qty || ''}
-                            onChange={e => handleServiceDetailChange(service_id, 'qty', e.target.value)}
-                            required
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <TextField
-                            fullWidth
-                            label="Customer PO"
-                            value={serviceDetails[service_id]?.customer_po || ''}
-                            onChange={e => handleServiceDetailChange(service_id, 'customer_po', e.target.value)}
-                            required
-                          />
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-              <Grid item xs={12}>
-                <Button type="submit" variant="contained" color="primary">
+            {renderStepContent(activeStep)}
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+              <Button
+                disabled={activeStep === 0}
+                onClick={handleBack}
+                variant="outlined"
+              >
+                Back
+              </Button>
+              {activeStep === steps.length - 1 ? (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  disabled={!!invoiceNumberError}
+                >
                   Create Invoice
                 </Button>
-              </Grid>
-            </Grid>
+              ) : (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleNext}
+                  disabled={!!invoiceNumberError}
+                >
+                  Next
+                </Button>
+              )}
+            </Box>
           </form>
         </CardContent>
       </Card>
+
       <Snackbar
         open={success}
         autoHideDuration={2000}

@@ -323,6 +323,58 @@ app.delete('/api/invoices/:id', async (req, res) => {
   }
 });
 
+// Create invoice endpoint (multi-service)
+app.post('/api/invoices', async (req, res) => {
+  try {
+    const { invoice_number, cust_id, status, services } = req.body;
+
+    // Relaxed validation: just require a non-empty string
+    if (!invoice_number || typeof invoice_number !== 'string') {
+      return res.status(400).json({ message: 'Invoice number is required.' });
+    }
+
+    // Check for duplicate invoice number
+    const [existingInvoice] = await pool.execute(
+      'SELECT * FROM invoices WHERE invoice_number = ?',
+      [invoice_number]
+    );
+    if (existingInvoice.length > 0) {
+      return res.status(400).json({ message: 'An invoice with this invoice number already exists' });
+    }
+
+    // Start a transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    try {
+      // Insert invoice
+      const [result] = await connection.execute(
+        'INSERT INTO invoices (invoice_number, cust_id, status) VALUES (?, ?, ?)',
+        [invoice_number, cust_id, status]
+      );
+      const invoiceId = result.insertId;
+
+      // Insert invoice_services
+      for (const service of services) {
+        await connection.execute(
+          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po) VALUES (?, ?, ?, ?)',
+          [invoiceId, service.service_id, service.qty, service.customer_po]
+        );
+      }
+
+      await connection.commit();
+      res.status(201).json({ message: 'Invoice created successfully', invoiceId });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    res.status(500).json({ message: 'Error creating invoice' });
+  }
+});
+
 // Get all customers endpoint
 app.get('/api/customers', async (req, res) => {
   try {
