@@ -37,6 +37,7 @@ import ListItemText from '@mui/material/ListItemText';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTheme } from '@mui/material/styles';
+import TextField from '@mui/material/TextField';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -61,6 +62,12 @@ const Print = () => {
   const [customerFilter, setCustomerFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [nrcIncluded, setNrcIncluded] = useState({});
+  const [serviceDates, setServiceDates] = useState({});
+  const [dueDate, setDueDate] = useState('');
+  const [dateBilled, setDateBilled] = useState(() => {
+    const today = new Date();
+    return today.toISOString().slice(0, 10);
+  });
   const theme = useTheme();
 
   useEffect(() => {
@@ -146,11 +153,25 @@ const Print = () => {
     // Initialize NRC inclusion for each service (default: true)
     if (invoice.services) {
       const nrcMap = {};
-      invoice.services.forEach(s => { nrcMap[s.service_id] = true; });
+      const dateMap = {};
+      invoice.services.forEach(s => {
+        nrcMap[s.service_id] = true;
+        dateMap[s.service_id] = {
+          start_date: s.start_date ? s.start_date.slice(0, 10) : '',
+          end_date: s.end_date ? s.end_date.slice(0, 10) : '',
+        };
+      });
       setNrcIncluded(nrcMap);
+      setServiceDates(dateMap);
     } else {
       setNrcIncluded({});
+      setServiceDates({});
     }
+    setDueDate('');
+    setDateBilled(() => {
+      const today = new Date();
+      return today.toISOString().slice(0, 10);
+    });
     setShowDialog(true);
   };
 
@@ -175,105 +196,161 @@ const Print = () => {
     return dateStr.split('T')[0];
   };
 
+  const handleServiceDateChange = (service_id, field, value) => {
+    setServiceDates(prev => ({
+      ...prev,
+      [service_id]: {
+        ...prev[service_id],
+        [field]: value
+      }
+    }));
+  };
+
   const handleNrcCheckbox = (service_id) => {
     setNrcIncluded(prev => ({ ...prev, [service_id]: !prev[service_id] }));
   };
 
   const handlePrintPDF = () => {
     if (!selectedInvoice || !selectedInvoice.services || !customer) return;
+    if (!dueDate || !dateBilled) {
+      setError('Please enter both Due Date and Date Billed.');
+      return;
+    }
     const doc = new jsPDF('p', 'mm', 'a4');
-    // Header
-    doc.setFontSize(18);
+
+    // --- HEADER ---
     doc.setFont('helvetica', 'bold');
-    doc.text('Billed To:', 14, 18);
     doc.setFontSize(12);
-    doc.text(customer.cust_name || '', 14, 26);
+    doc.text('Billed To :', 14, 18);
+    doc.setFontSize(13);
+    doc.text((customer.cust_name || '').toUpperCase(), 14, 25);
     doc.setFont('helvetica', 'normal');
-    doc.text(customer.cust_address || '', 14, 32);
-    doc.setFontSize(24);
+    doc.setFontSize(11);
+    let y = 31;
+    if (customer.cust_address) {
+      const addressLines = doc.splitTextToSize(customer.cust_address, 80);
+      doc.text(addressLines, 14, y);
+      y += addressLines.length * 6;
+    }
+    doc.text('Phone :  -', 14, y + 2);
+
+    // Invoice info box
     doc.setFont('helvetica', 'bold');
-    doc.text('Invoice', 160, 18);
+    doc.setFontSize(32);
+    doc.text('Invoice', 150, 22);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 160, 25);
-    doc.text(`PO #: ${selectedInvoice.customer_po}`, 160, 31);
-    doc.text(`Period: ${formatDate(service.start_date)} - ${formatDate(service.end_date)}`, 14, 45);
-    // Table
-    let y = 55;
+    doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 150, 32);
+    doc.text(`Date      : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
+    doc.text(`Due Date  : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
+
+    // --- TABLE ---
+    y += 12;
+    let tableY = Math.max(y, 55);
+    // Group services by PO
+    const poGroups = {};
     selectedInvoice.services.forEach(service => {
-      // Table for each service
-      const tableColumn = [
-        'Description',
-        'Period',
-        'Unit Price',
-        'Qty',
-        'Amount',
-      ];
-      const tableRows = [
-        [
-          service.service_name || '',
-          `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
-          service.mrc ? `Rp ${parseFloat(service.mrc).toLocaleString()}` : '',
-          service.qty || '',
-          service.mrc ? `Rp ${(parseFloat(service.mrc) * service.qty).toLocaleString()}` : '',
-        ],
-      ];
-      if (nrcIncluded[service.service_id] && service.nrc) {
+      if (!service) return;
+      const po = service.customer_po || 'NO PO';
+      if (!poGroups[po]) poGroups[po] = [];
+      poGroups[po].push(service);
+    });
+    // Build table rows
+    let tableRows = [];
+    let subTotal = 0;
+    Object.entries(poGroups).forEach(([po, services]) => {
+      // PO row (bold)
+      tableRows.push([
+        { content: `PO # ${po}`, styles: { fontStyle: 'bold', colSpan: 5, halign: 'left' } }, '', '', '', ''
+      ]);
+      services.forEach(service => {
+        const dates = serviceDates[service.service_id] || {};
+        const period = dates.start_date && dates.end_date ? `${dates.start_date.split('-').reverse().join('/')} - ${dates.end_date.split('-').reverse().join('/')}` : '';
+        // Service description row (indented)
         tableRows.push([
-          'Activation Fee',
-          `${formatDate(service.start_date)} - ${formatDate(service.end_date)}`,
-          service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
-          '1',
-          service.nrc ? `Rp ${parseFloat(service.nrc).toLocaleString()}` : '',
+          { content: `  ${service.service_name}`, styles: { colSpan: 5, halign: 'left' } }, '', '', '', ''
         ]);
-      }
-      autoTable(doc, {
-        startY: y,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'grid',
-        headStyles: {
-          fillColor: [255, 242, 0],
-          textColor: [0, 0, 0],
-          fontStyle: 'bold',
-          halign: 'center',
-          valign: 'middle',
-        },
-        bodyStyles: {
-          halign: 'left',
-          valign: 'middle',
-          fontSize: 11,
-        },
-        columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 15, halign: 'right' },
-          4: { cellWidth: 35, halign: 'right' },
-        },
-        styles: {
-          cellPadding: 2,
-          font: 'helvetica',
-        },
+        // MRC row
+        const mrcAmount = service.mrc ? parseFloat(service.mrc) * service.qty : 0;
+        subTotal += mrcAmount;
+        tableRows.push([
+          '', period, `Rp ${service.mrc ? parseFloat(service.mrc).toLocaleString() : ''}`, service.qty || '', `Rp ${mrcAmount ? mrcAmount.toLocaleString() : ''}`
+        ]);
+        // NRC row (if included)
+        if (nrcIncluded[service.service_id] && service.nrc) {
+          const nrcAmount = parseFloat(service.nrc) * 1;
+          subTotal += nrcAmount;
+          tableRows.push([
+            'Activation Fee', 'One Time', `Rp ${parseFloat(service.nrc).toLocaleString()}`, '1', `Rp ${parseFloat(service.nrc).toLocaleString()}`
+          ]);
+        }
       });
-      y = doc.lastAutoTable.finalY + 10;
     });
-    // Add payment instructions and bank details
-    y += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.text('All payment should be made in full Amount to PT. Digital Wireless Indonesia:', 14, y);
-    y += 7;
+
+    // --- TABLE HEADER ---
+    const tableHead = [[
+      { content: 'Description', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+      { content: 'Period', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+      { content: 'Unit Price', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+      { content: 'Qty', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+      { content: 'Amount', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+    ]];
+
+    autoTable(doc, {
+      startY: tableY,
+      head: tableHead,
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' },
+      bodyStyles: { fontSize: 11, halign: 'left', valign: 'middle' },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 30, halign: 'right' },
+        3: { cellWidth: 15, halign: 'right' },
+        4: { cellWidth: 35, halign: 'right' },
+      },
+      styles: { cellPadding: 2, font: 'helvetica' },
+      didDrawPage: (data) => {
+        // nothing
+      },
+    });
+
+    // --- SUBTOTAL, VAT, TOTAL ---
+    let yAfterTable = doc.lastAutoTable.finalY + 10;
+    const vat = Math.round(subTotal * 0.11);
+    const total = subTotal + vat;
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text('Sub Total', 150, yAfterTable);
+    doc.text('VAT/PPN', 150, yAfterTable + 7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL', 150, yAfterTable + 14);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Rp ${subTotal.toLocaleString()}`, 185, yAfterTable, { align: 'right' });
+    doc.text(`Rp ${vat.toLocaleString()}`, 185, yAfterTable + 7, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rp ${total.toLocaleString()}`, 185, yAfterTable + 14, { align: 'right' });
+
+    // --- FOOTER ---
+    let yFooter = yAfterTable + 30;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(11);
+    doc.text('All payment should be made in full Amount', 14, yFooter);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('Make all checks payable to :', 14, yFooter + 7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PT. Digital Wireless Indonesia', 14, yFooter + 14);
+    doc.setFont('helvetica', 'normal');
+    let yBank = yFooter + 21;
     banks.filter(b => selectedBanks.includes(b.bank_id)).forEach((bank) => {
-      doc.text(`Bank Name: ${bank.bank_name}`, 14, y);
-      y += 6;
-      doc.text(`Account Number: ${bank.acc_number}`, 14, y);
-      y += 6;
-      doc.text(`Bank Address: ${bank.bank_address}`, 14, y);
-      y += 6;
-      doc.text(`SWIFT: ${bank.swift_code || ''}  IBAN: ${bank.iban_code || ''}`, 14, y);
-      y += 8;
+      doc.text(`Bank ${bank.bank_name} - ${bank.bank_address}`, 14, yBank);
+      yBank += 6;
+      doc.text(`A/C # ${bank.acc_number} (${bank.currency})`, 14, yBank);
+      yBank += 7;
     });
+
     doc.save('invoice.pdf');
   };
 
@@ -489,6 +566,52 @@ const Print = () => {
             )}
           </Box>
 
+          {/* Invoice Due Date and Date Billed */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              label="Due Date"
+              type="date"
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              label="Date Billed"
+              type="date"
+              value={dateBilled}
+              onChange={e => setDateBilled(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+          </Box>
+          {/* Per-service date pickers */}
+          {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1">Set Period for Each Service:</Typography>
+              {selectedInvoice.services.map(service => (
+                <Box key={service.service_id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <Typography sx={{ minWidth: 120 }}>{service.service_name}</Typography>
+                  <TextField
+                    label="Start Date"
+                    type="date"
+                    value={serviceDates[service.service_id]?.start_date || ''}
+                    onChange={e => handleServiceDateChange(service.service_id, 'start_date', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
+                  <TextField
+                    label="End Date"
+                    type="date"
+                    value={serviceDates[service.service_id]?.end_date || ''}
+                    onChange={e => handleServiceDateChange(service.service_id, 'end_date', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
           {/* Per-service NRC checkboxes */}
           {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
             <Box sx={{ mb: 2 }}>
