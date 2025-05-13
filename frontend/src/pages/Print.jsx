@@ -320,17 +320,19 @@ const Print = () => {
     let yAfterTable = doc.lastAutoTable.finalY + 10;
     const vat = Math.round(subTotal * 0.11);
     const total = subTotal + vat;
+    const labelX = 150;
+    const valueX = 200; // Move this further right to avoid overlap
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
-    doc.text('Sub Total', 150, yAfterTable);
-    doc.text('VAT/PPN', 150, yAfterTable + 7);
+    doc.text('Sub Total', labelX, yAfterTable);
+    doc.text('VAT/PPN', labelX, yAfterTable + 7);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL', 150, yAfterTable + 14);
+    doc.text('TOTAL', labelX, yAfterTable + 14);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Rp ${subTotal.toLocaleString()}`, 185, yAfterTable, { align: 'right' });
-    doc.text(`Rp ${vat.toLocaleString()}`, 185, yAfterTable + 7, { align: 'right' });
+    doc.text(`Rp ${subTotal.toLocaleString()}`, valueX, yAfterTable, { align: 'right' });
+    doc.text(`Rp ${vat.toLocaleString()}`, valueX, yAfterTable + 7, { align: 'right' });
     doc.setFont('helvetica', 'bold');
-    doc.text(`Rp ${total.toLocaleString()}`, 185, yAfterTable + 14, { align: 'right' });
+    doc.text(`Rp ${total.toLocaleString()}`, valueX, yAfterTable + 14, { align: 'right' });
 
     // --- FOOTER ---
     let yFooter = yAfterTable + 30;
