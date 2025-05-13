@@ -411,18 +411,17 @@ const NewInvoice = () => {
 
       <Card>
         <CardContent>
-          <form onSubmit={handleSubmit}>
-            {renderStepContent(activeStep)}
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-              <Button
-                disabled={activeStep === 0}
-                onClick={handleBack}
-                variant="outlined"
-              >
-                Back
-              </Button>
-              {activeStep === steps.length - 1 ? (
+          {activeStep === steps.length - 1 ? (
+            <form onSubmit={handleSubmit}>
+              {renderStepContent(activeStep)}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                <Button
+                  disabled={activeStep === 0}
+                  onClick={handleBack}
+                  variant="outlined"
+                >
+                  Back
+                </Button>
                 <Button
                   type="submit"
                   variant="contained"
@@ -431,18 +430,31 @@ const NewInvoice = () => {
                 >
                   Create Invoice
                 </Button>
-              ) : (
+              </Box>
+            </form>
+          ) : (
+            <>
+              {renderStepContent(activeStep)}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                <Button
+                  disabled={activeStep === 0}
+                  onClick={handleBack}
+                  variant="outlined"
+                >
+                  Back
+                </Button>
                 <Button
                   variant="contained"
                   color="primary"
                   onClick={handleNext}
                   disabled={!!invoiceNumberError}
+                  type="button"
                 >
                   Next
                 </Button>
-              )}
-            </Box>
-          </form>
+              </Box>
+            </>
+          )}
         </CardContent>
       </Card>
 
