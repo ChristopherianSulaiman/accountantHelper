@@ -6,12 +6,21 @@ USE fullstack_app;
 -- Companies Table
 CREATE TABLE companies (
     company_id INT PRIMARY KEY AUTO_INCREMENT,
-    company_name VARCHAR(255) NOT NULL,
-    company_address TEXT NOT NULL
+    company_name VARCHAR(100) NOT NULL,
+    company_code VARCHAR(10) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- Insert the four companies
+INSERT INTO companies (company_name, company_code) VALUES
+    ('DIGISAT', 'DIGISAT'),
+    ('DIGINET', 'DIGINET'),
+    ('DKLS', 'DKLS'),
+    ('TAS', 'TAS');
+
 -- Customer Table
-CREATE TABLE IF NOT EXISTS customers (
+CREATE TABLE customers (
     cust_id INT PRIMARY KEY AUTO_INCREMENT,
     company_id INT NOT NULL,
     cust_name VARCHAR(255) NOT NULL,
@@ -58,23 +67,43 @@ CREATE TABLE invoices (
     invoice_number VARCHAR(50) NOT NULL UNIQUE,
     cust_id INT NOT NULL,
     status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
+    customer_po VARCHAR(255),
+    due_date DATE NULL,
+    amount DECIMAL(15,2) NULL,
     FOREIGN KEY (company_id) REFERENCES companies(company_id),
     FOREIGN KEY (cust_id) REFERENCES customers(cust_id)
 );
 
-CREATE TABLE IF NOT EXISTS invoice_services (
+-- Invoice Services Table
+CREATE TABLE invoice_services (
     id INT PRIMARY KEY AUTO_INCREMENT,
+    company_id INT NOT NULL,
     invoice_id INT NOT NULL,
     service_id INT NOT NULL,
     qty INT NOT NULL,
     customer_po VARCHAR(50) NOT NULL UNIQUE,
+    FOREIGN KEY (company_id) REFERENCES companies(company_id),
     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
     FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE
 );
 
--- Insert default companies
-INSERT INTO companies (company_name, company_address) VALUES
-('DIGISAT', 'DIGISAT Headquarters, Kuala Lumpur'),
-('DIGINET', 'DIGINET Office, Selangor'),
-('DKLS', 'DKLS Building, Kuala Lumpur'),
-('TAS', 'TAS Center, Kuala Lumpur');
+-- Add indexes for better performance
+CREATE INDEX idx_customers_company ON customers(company_id);
+CREATE INDEX idx_services_company ON services(company_id);
+CREATE INDEX idx_invoices_company ON invoices(company_id);
+CREATE INDEX idx_invoice_services_company ON invoice_services(company_id);
+CREATE INDEX idx_banks_company ON banks(company_id);
+
+-- Add trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_companies_updated_at
+    BEFORE UPDATE ON companies
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column(); 
