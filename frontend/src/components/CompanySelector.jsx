@@ -74,13 +74,18 @@ const CompanySelector = () => {
   const handleDelete = async () => {
     setDeleting(true);
     try {
+      console.log('Deleting company:', deleteDialog.company?.company_id);
       await axios.delete(`http://localhost:3000/api/companies/${deleteDialog.company.company_id}`);
       await fetchCompanies();
       if (company && company.company_id === deleteDialog.company.company_id) {
         setCompany(null);
       }
       setDeleteDialog({ open: false, company: null });
-    } catch (err) {} finally { setDeleting(false); }
+    } catch (err) {
+      // Optionally show error
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {

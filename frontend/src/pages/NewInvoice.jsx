@@ -26,6 +26,7 @@ import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import ListItemText from '@mui/material/ListItemText';
 import Checkbox from '@mui/material/Checkbox';
+import { useCompany } from '../components/CompanyContext';
 
 const statusOptions = [
   { value: 'pending', label: 'Pending' },
@@ -38,6 +39,7 @@ const steps = ['Basic Information', 'Select Services', 'Review & Submit'];
 
 const NewInvoice = () => {
   const navigate = useNavigate();
+  const { company } = useCompany();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -52,21 +54,22 @@ const NewInvoice = () => {
 
   useEffect(() => {
     // Fetch customers
-    fetch('http://localhost:3000/api/customers')
+    if (!company) return;
+    fetch(`http://localhost:3000/api/customers?company_id=${company.company_id}`)
       .then(res => res.json())
       .then(setCustomers);
-  }, []);
+  }, [company]);
 
   useEffect(() => {
     // Fetch services for selected customer
-    if (selectedCustomer) {
-      fetch('http://localhost:3000/api/services')
-        .then(res => res.json())
-        .then(data => setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer))));
-    } else {
+    if (!company || !selectedCustomer) {
       setServices([]);
+      return;
     }
-  }, [selectedCustomer]);
+    fetch(`http://localhost:3000/api/services?company_id=${company.company_id}`)
+      .then(res => res.json())
+      .then(data => setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer))));
+  }, [company, selectedCustomer]);
 
   // When services change, remove details for unselected services
   useEffect(() => {
@@ -159,6 +162,7 @@ const NewInvoice = () => {
           invoice_number: invoiceNumber,
           cust_id: selectedCustomer,
           status,
+          company_id: company.company_id,
           services: selectedServiceIds.map(service_id => ({
             service_id,
             qty: serviceDetails[service_id].qty,
@@ -385,6 +389,15 @@ const NewInvoice = () => {
         return null;
     }
   };
+
+  // Add company check before rendering the form
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to create an invoice.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
