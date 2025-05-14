@@ -42,6 +42,8 @@ const EditInvoice = () => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [status, setStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
+  const [servicesLoaded, setServicesLoaded] = useState(false);
+  const [invoiceLoaded, setInvoiceLoaded] = useState(false);
 
   useEffect(() => {
     // Fetch customers
@@ -58,6 +60,7 @@ const EditInvoice = () => {
         const res = await fetch(`http://localhost:3000/api/invoices/${id}`);
         if (!res.ok) throw new Error('Invoice not found');
         const data = await res.json();
+        console.log('Fetched invoice data:', data); // Debug log
         setInvoiceNumber(data.invoice_number);
         setSelectedCustomer(data.cust_id);
         setStatus(data.status);
@@ -67,7 +70,9 @@ const EditInvoice = () => {
         data.services.forEach(s => {
           details[s.service_id] = { qty: s.qty, customer_po: s.customer_po };
         });
+        console.log('Setting service details:', details); // Debug log
         setServiceDetails(details);
+        setInvoiceLoaded(true);
       } catch (err) {
         setError('Failed to load invoice.');
       } finally {
@@ -80,24 +85,70 @@ const EditInvoice = () => {
   // Fetch services for selected customer
   useEffect(() => {
     if (selectedCustomer) {
+      setServicesLoaded(false);
       fetch('http://localhost:3000/api/services')
         .then(res => res.json())
-        .then(data => setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer))));
+        .then(data => {
+          console.log('Fetched services for customer:', data); // Debug log
+          setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer)));
+          setServicesLoaded(true);
+        });
     } else {
       setServices([]);
+      setServicesLoaded(true);
     }
   }, [selectedCustomer]);
 
-  // When services change, remove details for unselected services
+  // When services change, remove details for unselected services (but do not clear on customer change)
   useEffect(() => {
+    console.log('Selected service IDs changed:', selectedServiceIds); // Debug log
+    console.log('Current service details:', serviceDetails); // Debug log
     setServiceDetails(prev => {
       const newDetails = { ...prev };
+      // Only remove details for services that are no longer selected
       Object.keys(newDetails).forEach(id => {
-        if (!selectedServiceIds.includes(id)) delete newDetails[id];
+        if (!selectedServiceIds.includes(Number(id))) {
+          delete newDetails[id];
+        }
       });
+      console.log('Updated service details:', newDetails); // Debug log
       return newDetails;
     });
   }, [selectedServiceIds]);
+
+  // After both invoice and services are loaded, ensure all fields are pre-filled with invoice values
+  useEffect(() => {
+    if (invoiceLoaded && servicesLoaded) {
+      console.log('Invoice and services loaded, current service details:', serviceDetails); // Debug log
+      setServiceDetails(prevDetails => {
+        const newDetails = { ...prevDetails };
+        selectedServiceIds.forEach(id => {
+          // If already set from invoice fetch, keep it
+          if (newDetails[id] && newDetails[id].qty && newDetails[id].customer_po) {
+            console.log('Keeping existing details for service:', id, newDetails[id]); // Debug log
+            return;
+          }
+          // Try to find from services (which may have been set from invoice fetch)
+          const invoiceService = services.find(s => s.service_id === id);
+          if (invoiceService) {
+            console.log('Found service details from services:', id, invoiceService); // Debug log
+            newDetails[id] = { 
+              qty: invoiceService.qty || newDetails[id]?.qty || '', 
+              customer_po: invoiceService.customer_po || newDetails[id]?.customer_po || '' 
+            };
+          } else {
+            console.log('No details found for service:', id); // Debug log
+            newDetails[id] = { 
+              qty: newDetails[id]?.qty || '', 
+              customer_po: newDetails[id]?.customer_po || '' 
+            };
+          }
+        });
+        console.log('Final service details:', newDetails); // Debug log
+        return newDetails;
+      });
+    }
+  }, [invoiceLoaded, servicesLoaded, selectedServiceIds, services]);
 
   const handleServiceSelect = (event) => {
     const value = event.target.value;
@@ -156,7 +207,7 @@ const EditInvoice = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !servicesLoaded || !invoiceLoaded) {
     return <Typography>Loading...</Typography>;
   }
 
@@ -194,9 +245,16 @@ const EditInvoice = () => {
                     value={selectedCustomer}
                     label="Customer"
                     onChange={e => {
-                      setSelectedCustomer(e.target.value);
-                      setSelectedServiceIds([]); // Reset services
-                      setServiceDetails({});     // Reset service details
+                      const newCustomerId = e.target.value;
+                      // Only reset services if this is a new customer selection
+                      if (newCustomerId !== selectedCustomer) {
+                        setSelectedCustomer(newCustomerId);
+                        // Don't reset service details when editing an existing invoice
+                        if (!id) {
+                          setSelectedServiceIds([]);
+                          setServiceDetails({});
+                        }
+                      }
                     }}
                   >
                     <MenuItem value="">Select Customer</MenuItem>
