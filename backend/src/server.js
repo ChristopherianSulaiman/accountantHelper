@@ -406,6 +406,88 @@ app.post('/api/customers', async (req, res) => {
   }
 });
 
+// Update customer endpoint
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cust_name, cust_address } = req.body;
+    
+    const [result] = await pool.execute(
+      'UPDATE customers SET cust_name = ?, cust_address = ? WHERE cust_id = ?',
+      [cust_name, cust_address, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    res.json({
+      message: 'Customer updated successfully',
+      customerId: id
+    });
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    res.status(500).json({ message: 'Error updating customer' });
+  }
+});
+
+// Delete customer endpoint
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Start a transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // First delete related invoice_services
+      await connection.execute(
+        'DELETE isv FROM invoice_services isv ' +
+        'INNER JOIN invoices i ON isv.invoice_id = i.invoice_id ' +
+        'WHERE i.cust_id = ?',
+        [id]
+      );
+
+      // Then delete related invoices
+      await connection.execute(
+        'DELETE FROM invoices WHERE cust_id = ?',
+        [id]
+      );
+
+      // Then delete related services
+      await connection.execute(
+        'DELETE FROM services WHERE cust_id = ?',
+        [id]
+      );
+
+      // Finally delete the customer
+      const [result] = await connection.execute(
+        'DELETE FROM customers WHERE cust_id = ?',
+        [id]
+      );
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+
+      await connection.commit();
+      res.json({
+        message: 'Customer and all related records deleted successfully'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    res.status(500).json({ message: 'Error deleting customer' });
+  }
+});
+
 // Get all banks endpoint
 app.get('/api/banks', async (req, res) => {
   try {

@@ -17,7 +17,12 @@ import {
   TextField,
   Grid,
   CircularProgress,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -28,7 +33,7 @@ import {
 } from '@mui/icons-material';
 
 // Customer row component for expandable rows
-const CustomerRow = ({ customer }) => {
+const CustomerRow = ({ customer, onEdit, onDelete }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -46,10 +51,10 @@ const CustomerRow = ({ customer }) => {
         <TableCell>{customer.cust_name}</TableCell>
         <TableCell>{customer.cust_address}</TableCell>
         <TableCell>
-          <IconButton color="primary" size="small">
+          <IconButton color="primary" size="small" onClick={() => onEdit(customer)}>
             <EditIcon />
           </IconButton>
-          <IconButton color="error" size="small">
+          <IconButton color="error" size="small" onClick={() => onDelete(customer)}>
             <DeleteIcon />
           </IconButton>
         </TableCell>
@@ -86,6 +91,9 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_address: ''
@@ -112,19 +120,27 @@ const Customers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/api/customers', {
-        cust_name: formData.customer_name,
-        cust_address: formData.customer_address
-      });
+      if (editingCustomer) {
+        await axios.put(`http://localhost:3000/api/customers/${editingCustomer.cust_id}`, {
+          cust_name: formData.customer_name,
+          cust_address: formData.customer_address
+        });
+      } else {
+        await axios.post('http://localhost:3000/api/customers', {
+          cust_name: formData.customer_name,
+          cust_address: formData.customer_address
+        });
+      }
       setShowForm(false);
+      setEditingCustomer(null);
       setFormData({
         customer_name: '',
         customer_address: ''
       });
       fetchCustomers();
     } catch (error) {
-      console.error('Error creating customer:', error);
-      setError('Failed to create customer. Please try again.');
+      console.error('Error saving customer:', error);
+      setError('Failed to save customer. Please try again.');
     }
   };
 
@@ -132,6 +148,44 @@ const Customers = () => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
+    });
+  };
+
+  const handleEdit = (customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      customer_name: customer.cust_name,
+      customer_address: customer.cust_address
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = (customer) => {
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!customerToDelete) return;
+    try {
+      await axios.delete(`http://localhost:3000/api/customers/${customerToDelete.cust_id}`);
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      setError('Failed to delete customer. Please try again.');
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingCustomer(null);
+    setFormData({
+      customer_name: '',
+      customer_address: ''
     });
   };
 
@@ -144,7 +198,14 @@ const Customers = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setEditingCustomer(null);
+            setFormData({
+              customer_name: '',
+              customer_address: ''
+            });
+            setShowForm(!showForm);
+          }}
         >
           New Customer
         </Button>
@@ -159,7 +220,7 @@ const Customers = () => {
       {showForm && (
         <Card sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Add New Customer
+            {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
           </Typography>
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
@@ -187,13 +248,39 @@ const Customers = () => {
               </Grid>
               <Grid item xs={12}>
                 <Button type="submit" variant="contained" color="primary">
-                  Create Customer
+                  {editingCustomer ? 'Update Customer' : 'Create Customer'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleCancel}
+                  sx={{ ml: 2 }}
+                >
+                  Cancel
                 </Button>
               </Grid>
             </Grid>
           </form>
         </Card>
       )}
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Delete Customer</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete {customerToDelete?.cust_name}? This will also delete all related services. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Card>
         <TableContainer component={Paper}>
@@ -221,7 +308,12 @@ const Customers = () => {
                 </TableRow>
               ) : (
                 customers.map((customer) => (
-                  <CustomerRow key={customer.id} customer={customer} />
+                  <CustomerRow 
+                    key={customer.cust_id} 
+                    customer={customer}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
                 ))
               )}
             </TableBody>
