@@ -21,7 +21,9 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Snackbar
+  Snackbar,
+  Chip,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,13 +32,18 @@ import {
   Visibility as ViewIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
+  Search as SearchIcon,
+  FilterAlt as FilterIcon,
+  AttachMoney as MoneyIcon,
+  CalendarToday as CalendarIcon,
+  Business as BusinessIcon,
+  Build as BuildIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { format, parse } from 'date-fns';
 import axios from 'axios';
 import InputAdornment from '@mui/material/InputAdornment';
-import { Search as SearchIcon } from '@mui/icons-material';
 import { useCompany } from '../components/CompanyContext';
 
 const ServiceRow = ({ service, onDelete }) => {
@@ -53,10 +60,32 @@ const ServiceRow = ({ service, onDelete }) => {
     }
   };
 
+  const getServiceTypeColor = (type) => {
+    const colors = {
+      internet: '#4285F4',
+      connectivity: '#34A853',
+      hosting: '#FBBC05',
+      cloud: '#7986CB',
+      security: '#EA4335',
+      maintenance: '#9C27B0'
+    };
+    return colors[type] || '#757575';
+  };
+
   return (
     <>
-      <TableRow>
-        <TableCell>{service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}</TableCell>
+      <TableRow sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+        <TableCell>
+          <Chip 
+            label={service.service_type.charAt(0).toUpperCase() + service.service_type.slice(1)}
+            sx={{ 
+              bgcolor: getServiceTypeColor(service.service_type),
+              color: 'white',
+              fontWeight: 500
+            }}
+            size="small"
+          />
+        </TableCell>
         <TableCell>{service.service_name}</TableCell>
         <TableCell>{service.cust_name}</TableCell>
         <TableCell align="right">Rp{parseFloat(service.nrc).toFixed(2)}</TableCell>
@@ -255,7 +284,10 @@ const Services = () => {
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4">Services</Typography>
+        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BuildIcon sx={{ color: 'primary.main' }} />
+          Services
+        </Typography>
         <Button
           variant="contained"
           color="primary"
@@ -272,64 +304,78 @@ const Services = () => {
             });
             setShowForm(!showForm);
           }}
+          sx={{ borderRadius: '8px' }}
         >
           {showForm ? 'Cancel' : 'New Service'}
         </Button>
       </Box>
 
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <TextField
-          placeholder="Search by service name..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          size="small"
-          sx={{ minWidth: 200 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <FormControl sx={{ minWidth: 200 }} size="small">
-          <InputLabel>Customer</InputLabel>
-          <Select
-            value={customerFilter}
-            label="Customer"
-            onChange={e => setCustomerFilter(e.target.value)}
-          >
-            <MenuItem value="">All Customers</MenuItem>
-            {customers.map(c => (
-              <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl sx={{ minWidth: 160 }} size="small">
-          <InputLabel>Service Type</InputLabel>
-          <Select
-            value={serviceTypeFilter}
-            label="Service Type"
-            onChange={e => setServiceTypeFilter(e.target.value)}
-          >
-            <MenuItem value="">All Types</MenuItem>
-            {serviceTypes.map(type => (
-              <MenuItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl sx={{ minWidth: 180 }} size="small">
-          <InputLabel>Sort by End Date</InputLabel>
-          <Select
-            value={sortOrder}
-            label="Sort by End Date"
-            onChange={e => setSortOrder(e.target.value)}
-          >
-            <MenuItem value="earliest">Earliest to Latest</MenuItem>
-            <MenuItem value="latest">Latest to Earliest</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
+      <Card sx={{ mb: 3, p: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField
+              placeholder="Search by service name..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Customer</InputLabel>
+              <Select
+                value={customerFilter}
+                label="Customer"
+                onChange={e => setCustomerFilter(e.target.value)}
+                startAdornment={<BusinessIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
+              >
+                <MenuItem value="">All Customers</MenuItem>
+                {customers.map(c => (
+                  <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Service Type</InputLabel>
+              <Select
+                value={serviceTypeFilter}
+                label="Service Type"
+                onChange={e => setServiceTypeFilter(e.target.value)}
+                startAdornment={<FilterIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
+              >
+                <MenuItem value="">All Types</MenuItem>
+                {serviceTypes.map(type => (
+                  <MenuItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Sort by End Date</InputLabel>
+              <Select
+                value={sortOrder}
+                label="Sort by End Date"
+                onChange={e => setSortOrder(e.target.value)}
+                startAdornment={<CalendarIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
+              >
+                <MenuItem value="earliest">Earliest to Latest</MenuItem>
+                <MenuItem value="latest">Latest to Earliest</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Card>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -338,10 +384,12 @@ const Services = () => {
       )}
 
       {showForm && (
-        <Card sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
+        <Card sx={{ p: 3, mb: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+          <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AddIcon />
             Add New Service
           </Typography>
+          <Divider sx={{ mb: 2 }} />
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -353,6 +401,7 @@ const Services = () => {
                     value={formData.service_type}
                     onChange={handleInputChange}
                     label="Service Type"
+                    startAdornment={<BuildIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
                   >
                     <MenuItem value="internet">Internet</MenuItem>
                     <MenuItem value="connectivity">Connectivity</MenuItem>
@@ -383,6 +432,13 @@ const Services = () => {
                   onChange={handleInputChange}
                   required
                   inputProps={{ min: 0, step: 0.01 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <MoneyIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -395,6 +451,13 @@ const Services = () => {
                   onChange={handleInputChange}
                   required
                   inputProps={{ min: 0, step: 0.01 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <MoneyIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -408,6 +471,13 @@ const Services = () => {
                   required
                   InputLabelProps={{
                     shrink: true,
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarIcon color="action" />
+                      </InputAdornment>
+                    ),
                   }}
                 />
               </Grid>
@@ -423,6 +493,13 @@ const Services = () => {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -434,6 +511,7 @@ const Services = () => {
                     value={formData.cust_id}
                     onChange={handleInputChange}
                     label="Customer"
+                    startAdornment={<BusinessIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
                     MenuProps={{
                       PaperProps: {
                         style: {
@@ -450,15 +528,15 @@ const Services = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12}>
-                <Button type="submit" variant="contained" color="primary">
+              <Grid item xs={12} sx={{ mt: 1 }}>
+                <Button type="submit" variant="contained" color="primary" sx={{ mr: 2, borderRadius: '8px' }}>
                   Create Service
                 </Button>
                 <Button
                   variant="outlined"
                   color="secondary"
                   onClick={() => setShowForm(false)}
-                  sx={{ ml: 2 }}
+                  sx={{ borderRadius: '8px' }}
                 >
                   Cancel
                 </Button>
@@ -468,27 +546,30 @@ const Services = () => {
         </Card>
       )}
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
+      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer component={Paper} elevation={0}>
             <Table>
-              <TableHead>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell>Service Type</TableCell>
-                  <TableCell>Service Name</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell align="right">NRC</TableCell>
-                  <TableCell align="right">MRC</TableCell>
-                  <TableCell>Start Date</TableCell>
-                  <TableCell>End Date</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Service Type</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Service Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Customer</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>NRC</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>MRC</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Start Date</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>End Date</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {sortedServices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
-                      No services available
+                      <Box sx={{ py: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <BuildIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
+                        <Typography color="text.secondary">No services available</Typography>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ) : (

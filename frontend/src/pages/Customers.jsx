@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   Box,
   Card,
+  CardContent,
   Typography,
   Button,
   Table,
@@ -22,14 +23,22 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Divider,
+  InputAdornment,
+  Chip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  Person as PersonIcon,
+  Search as SearchIcon,
+  LocationOn as LocationIcon,
+  Event as EventIcon,
+  Business as BusinessIcon
 } from '@mui/icons-material';
 import { useCompany } from '../components/CompanyContext';
 
@@ -39,7 +48,7 @@ const CustomerRow = ({ customer, onEdit, onDelete }) => {
 
   return (
     <>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+      <TableRow sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
         <TableCell>
           <IconButton
             aria-label="expand row"
@@ -49,7 +58,12 @@ const CustomerRow = ({ customer, onEdit, onDelete }) => {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell>{customer.cust_name}</TableCell>
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonIcon fontSize="small" color="action" />
+            <Typography variant="body2" fontWeight="medium">{customer.cust_name}</Typography>
+          </Box>
+        </TableCell>
         <TableCell>{customer.cust_address}</TableCell>
         <TableCell>
           <IconButton color="primary" size="small" onClick={() => onEdit(customer)}>
@@ -63,18 +77,20 @@ const CustomerRow = ({ customer, onEdit, onDelete }) => {
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              <Typography variant="h6" gutterBottom component="div">
+            <Box sx={{ margin: 1, py: 2 }}>
+              <Typography variant="h6" gutterBottom component="div" color="primary">
                 Additional Details
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="body2">
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EventIcon fontSize="small" color="action" />
                     <strong>Created:</strong> {new Date(customer.created_at).toLocaleDateString()}
                   </Typography>
                 </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body2">
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EventIcon fontSize="small" color="action" />
                     <strong>Last Updated:</strong> {new Date(customer.updated_at).toLocaleDateString()}
                   </Typography>
                 </Grid>
@@ -100,6 +116,7 @@ const Customers = () => {
     customer_name: '',
     customer_address: ''
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!company) return;
@@ -195,6 +212,11 @@ const Customers = () => {
     });
   };
 
+  const filteredCustomers = customers.filter(customer => 
+    customer.cust_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    customer.cust_address.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (!company) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -203,129 +225,184 @@ const Customers = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box sx={{ width: '100%', maxWidth: 900, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">
-            Customers
+    <Box>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BusinessIcon sx={{ color: 'primary.main' }} />
+          Customers
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => {
+            setEditingCustomer(null);
+            setFormData({
+              customer_name: '',
+              customer_address: ''
+            });
+            setShowForm(!showForm);
+          }}
+          sx={{ borderRadius: '8px' }}
+        >
+          New Customer
+        </Button>
+      </Box>
+
+      <Card sx={{ mb: 3, p: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12}>
+            <TextField
+              placeholder="Search customers..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Card>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {showForm && (
+        <Card sx={{ p: 3, mb: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+          <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {editingCustomer ? <EditIcon /> : <AddIcon />}
+            {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setEditingCustomer(null);
-              setFormData({
-                customer_name: '',
-                customer_address: ''
-              });
-              setShowForm(!showForm);
-            }}
-            sx={{ minWidth: 180, fontSize: '1.1rem', py: 1 }}
-          >
-            New Customer
-          </Button>
-        </Box>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {showForm && (
-          <Card sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
-            </Typography>
-            <form onSubmit={handleSubmit}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Customer Name"
-                    name="customer_name"
-                    value={formData.customer_name}
-                    onChange={handleChange}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Customer Address"
-                    name="customer_address"
-                    value={formData.customer_address}
-                    onChange={handleChange}
-                    required
-                    multiline
-                    rows={2}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Button type="submit" variant="contained" color="primary">
+          <Divider sx={{ mb: 2 }} />
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Customer Name"
+                  name="customer_name"
+                  value={formData.customer_name}
+                  onChange={handleChange}
+                  required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Customer Address"
+                  name="customer_address"
+                  value={formData.customer_address}
+                  onChange={handleChange}
+                  required
+                  multiline
+                  rows={2}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocationIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                  <Button 
+                    type="submit" 
+                    variant="contained" 
+                    color="primary"
+                    sx={{ borderRadius: '8px' }}
+                  >
                     {editingCustomer ? 'Update Customer' : 'Create Customer'}
                   </Button>
                   <Button
                     variant="outlined"
                     color="secondary"
                     onClick={handleCancel}
-                    sx={{ ml: 2 }}
+                    sx={{ borderRadius: '8px' }}
                   >
                     Cancel
                   </Button>
-                </Grid>
+                </Box>
               </Grid>
-            </form>
-          </Card>
-        )}
+            </Grid>
+          </form>
+        </Card>
+      )}
 
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={() => setDeleteDialogOpen(false)}
-        >
-          <DialogTitle>Delete Customer</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete {customerToDelete?.cust_name}? This will also delete all related services. This action cannot be undone.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleDeleteConfirm} color="error" autoFocus>
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        PaperProps={{
+          sx: { borderRadius: '8px' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteIcon color="error" />
+          Delete Customer
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete {customerToDelete?.cust_name}? This will also delete all related services. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 3 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} sx={{ borderRadius: '8px' }}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" sx={{ borderRadius: '8px' }}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        <Card sx={{ width: '100%', maxWidth: 900, mx: 'auto' }}>
-          <TableContainer>
-            <Table sx={{ minWidth: 700 }}>
-              <TableHead>
+      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer component={Paper} elevation={0}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableRow>
                   <TableCell />
-                  <TableCell>Customer Name</TableCell>
-                  <TableCell>Address</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Customer Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Address</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {loading ? (
+                {filteredCustomers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} align="center">
-                      <CircularProgress />
-                    </TableCell>
-                  </TableRow>
-                ) : customers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                      <Typography variant="body1" color="text.secondary">
-                        No customers found
-                      </Typography>
+                      <Box sx={{ py: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
+                        <Typography color="text.secondary">No customers found</Typography>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  customers.map((customer) => (
+                  filteredCustomers.map((customer) => (
                     <CustomerRow 
                       key={customer.cust_id} 
                       customer={customer}
@@ -337,8 +414,8 @@ const Customers = () => {
               </TableBody>
             </Table>
           </TableContainer>
-        </Card>
-      </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

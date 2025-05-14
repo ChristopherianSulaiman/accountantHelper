@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   Box,
   Card,
+  CardContent,
   Typography,
   Button,
   Table,
@@ -21,14 +22,23 @@ import {
   MenuItem,
   Select,
   FormControl,
-  InputLabel
+  InputLabel,
+  Chip,
+  Divider,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  AccountBalance as BankIcon,
+  Euro as CurrencyIcon,
+  BusinessCenter as BusinessIcon,
+  CreditCard as CardIcon,
+  Search as SearchIcon,
+  LocationOn as LocationIcon
 } from '@mui/icons-material';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -41,9 +51,13 @@ import { useCompany } from '../components/CompanyContext';
 const BankRow = ({ bank, onEdit, onDelete }) => {
   const [open, setOpen] = useState(false);
 
+  const getTypeColor = (type) => {
+    return type === 'company' ? '#4285F4' : '#34A853';
+  };
+
   return (
     <>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
+      <TableRow sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
         <TableCell>
           <IconButton
             aria-label="expand row"
@@ -53,10 +67,25 @@ const BankRow = ({ bank, onEdit, onDelete }) => {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell>{bank.bank_name}</TableCell>
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <BankIcon fontSize="small" color="action" />
+            <Typography variant="body2" fontWeight="medium">{bank.bank_name}</Typography>
+          </Box>
+        </TableCell>
         <TableCell>{bank.acc_number}</TableCell>
         <TableCell>{bank.currency}</TableCell>
-        <TableCell>{bank.type}</TableCell>
+        <TableCell>
+          <Chip
+            label={bank.type.charAt(0).toUpperCase() + bank.type.slice(1)}
+            size="small"
+            sx={{
+              bgcolor: getTypeColor(bank.type),
+              color: 'white',
+              fontWeight: 500
+            }}
+          />
+        </TableCell>
         <TableCell>
           <IconButton color="primary" size="small" onClick={() => onEdit(bank)}>
             <EditIcon />
@@ -69,28 +98,32 @@ const BankRow = ({ bank, onEdit, onDelete }) => {
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              <Typography variant="h6" gutterBottom component="div">
+            <Box sx={{ margin: 1, py: 2 }}>
+              <Typography variant="h6" gutterBottom component="div" color="primary">
                 Additional Details
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocationIcon fontSize="small" color="action" />
                     <strong>Bank Address:</strong> {bank.bank_address}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CardIcon fontSize="small" color="action" />
                     <strong>Bank Code:</strong> {bank.bank_code}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CurrencyIcon fontSize="small" color="action" />
                     <strong>SWIFT Code:</strong> {bank.swift_code}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
+                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CurrencyIcon fontSize="small" color="action" />
                     <strong>IBAN Code:</strong> {bank.iban_code}
                   </Typography>
                 </Grid>
@@ -122,6 +155,8 @@ const Banks = () => {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bankToDelete, setBankToDelete] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
 
   useEffect(() => {
     if (!company) return;
@@ -221,14 +256,12 @@ const Banks = () => {
     if (!bankToDelete) return;
     try {
       await axios.delete(`http://localhost:3000/api/banks/${bankToDelete.bank_id}`);
-      console.log("here");
       setDeleteDialogOpen(false);
       setBankToDelete(null);
       fetchBanks();
     } catch (error) {
       console.error('Error deleting bank:', error);
       setError('Failed to delete bank. Please try again.');
-      console.log(error);
       setDeleteDialogOpen(false);
       setBankToDelete(null);
     }
@@ -239,6 +272,12 @@ const Banks = () => {
     setBankToDelete(null);
   };
 
+  const filteredBanks = banks.filter(bank => {
+    const nameMatch = bank.bank_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const typeMatch = typeFilter ? bank.type === typeFilter : true;
+    return nameMatch && typeMatch;
+  });
+
   if (!company) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -247,20 +286,67 @@ const Banks = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+    <Box>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BankIcon sx={{ color: 'primary.main' }} />
           Banks
         </Typography>
         <Button
           variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
           onClick={() => { setShowForm(!showForm); setEditingBank(null); }}
+          sx={{ borderRadius: '8px' }}
         >
           New Bank
         </Button>
       </Box>
+
+      <Card sx={{ mb: 3, p: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              placeholder="Search by bank name..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Account Type</InputLabel>
+              <Select
+                value={typeFilter}
+                label="Account Type"
+                onChange={e => setTypeFilter(e.target.value)}
+                startAdornment={<BusinessIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
+              >
+                <MenuItem value="">All Types</MenuItem>
+                <MenuItem value="company">Company</MenuItem>
+                <MenuItem value="customer">Customer</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Card>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -269,10 +355,12 @@ const Banks = () => {
       )}
 
       {showForm && (
-        <Card sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
+        <Card sx={{ p: 3, mb: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+          <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {editingBank ? <EditIcon /> : <AddIcon />}
             {editingBank ? 'Edit Bank' : 'Add New Bank'}
           </Typography>
+          <Divider sx={{ mb: 2 }} />
           <form onSubmit={handleSubmit}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -283,6 +371,13 @@ const Banks = () => {
                   value={formData.bank_name}
                   onChange={handleChange}
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BankIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -295,6 +390,13 @@ const Banks = () => {
                   required
                   multiline
                   rows={2}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocationIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -304,6 +406,13 @@ const Banks = () => {
                   name="bank_code"
                   value={formData.bank_code}
                   onChange={handleChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CardIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -313,6 +422,13 @@ const Banks = () => {
                   name="swift_code"
                   value={formData.swift_code}
                   onChange={handleChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CardIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -322,6 +438,13 @@ const Banks = () => {
                   name="iban_code"
                   value={formData.iban_code}
                   onChange={handleChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CardIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -332,6 +455,13 @@ const Banks = () => {
                   value={formData.currency}
                   onChange={handleChange}
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CurrencyIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -342,6 +472,13 @@ const Banks = () => {
                   value={formData.acc_number}
                   onChange={handleChange}
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CardIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -352,6 +489,7 @@ const Banks = () => {
                     value={formData.type}
                     onChange={handleChange}
                     label="Type"
+                    startAdornment={<BusinessIcon sx={{ ml: 1, mr: 0.5, color: 'action.active' }} fontSize="small" />}
                   >
                     <MenuItem value="customer">Customer</MenuItem>
                     <MenuItem value="company">Company</MenuItem>
@@ -360,63 +498,81 @@ const Banks = () => {
               </Grid>
             </Grid>
             <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-              <Button type="submit" variant="contained" color="primary">
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary"
+                sx={{ borderRadius: '8px' }}
+              >
                 {editingBank ? 'Update Bank' : 'Create Bank'}
               </Button>
-              {editingBank && (
-                <Button variant="outlined" color="secondary" onClick={handleCancel}>
-                  Cancel
-                </Button>
-              )}
+              <Button 
+                variant="outlined" 
+                color="secondary" 
+                onClick={handleCancel}
+                sx={{ borderRadius: '8px' }}
+              >
+                Cancel
+              </Button>
             </Box>
           </form>
         </Card>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell />
-              <TableCell>Bank Name</TableCell>
-              <TableCell>Account Number</TableCell>
-              <TableCell>Currency</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {banks.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No banks found
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              banks.map((bank) => (
-                <BankRow key={bank.bank_id} bank={bank} onEdit={handleEdit} onDelete={handleDelete} />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <CircularProgress />
-        </Box>
-      )}
-      <Dialog open={deleteDialogOpen} onClose={cancelDelete}>
-        <DialogTitle>Delete Bank</DialogTitle>
+      <Card sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+        <CardContent sx={{ p: 0 }}>
+          <TableContainer component={Paper} elevation={0}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableRow>
+                  <TableCell />
+                  <TableCell sx={{ fontWeight: 'bold' }}>Bank Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Account Number</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Currency</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredBanks.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <Box sx={{ py: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        <BankIcon sx={{ fontSize: 40, color: 'text.disabled' }} />
+                        <Typography color="text.secondary">No banks found</Typography>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredBanks.map((bank) => (
+                    <BankRow key={bank.bank_id} bank={bank} onEdit={handleEdit} onDelete={handleDelete} />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={cancelDelete}
+        PaperProps={{
+          sx: { borderRadius: '8px' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteIcon color="error" />
+          Delete Bank
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
             Are you sure you want to delete the bank "{bankToDelete?.bank_name}"?
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelDelete} color="secondary">Cancel</Button>
-          <Button onClick={confirmDelete} color="error">Delete</Button>
+        <DialogActions sx={{ pb: 2, px: 3 }}>
+          <Button onClick={cancelDelete} color="secondary" sx={{ borderRadius: '8px' }}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" sx={{ borderRadius: '8px' }}>Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>
