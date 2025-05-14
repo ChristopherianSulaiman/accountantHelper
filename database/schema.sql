@@ -10,10 +10,9 @@ CREATE TABLE IF NOT EXISTS companies (
     company_address TEXT
 );
 
--- Insert DigiSat as the first company
+-- Insert DIGISAT as the default company
 INSERT INTO companies (company_name, company_address)
-VALUES ('DigiSat', 'Default Address for DigiSat')
-ON DUPLICATE KEY UPDATE company_name=company_name;
+VALUES ('DIGISAT', 'Default Address for DIGISAT');
 
 -- Customer Table
 CREATE TABLE IF NOT EXISTS customers (
@@ -22,7 +21,8 @@ CREATE TABLE IF NOT EXISTS customers (
     cust_address TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    company_id INT NULL
+    company_id INT NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
 -- Bank Table
@@ -36,7 +36,8 @@ CREATE TABLE banks (
     currency VARCHAR(3) NOT NULL,
     acc_number VARCHAR(50) NOT NULL,
     type ENUM('customer', 'company') NOT NULL,
-    company_id INT NULL
+    company_id INT NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
 -- Service Table
@@ -49,8 +50,9 @@ CREATE TABLE services (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     cust_id INT NOT NULL,
+    company_id INT NOT NULL,
     FOREIGN KEY (cust_id) REFERENCES customers(cust_id),
-    company_id INT NULL
+    FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
 -- Invoice Table
@@ -59,35 +61,20 @@ CREATE TABLE invoices (
     invoice_number VARCHAR(50) NOT NULL UNIQUE,
     cust_id INT NOT NULL,
     status ENUM('pending', 'paid', 'overdue', 'cancelled') NOT NULL DEFAULT 'pending',
+    company_id INT NOT NULL,
     FOREIGN KEY (cust_id) REFERENCES customers(cust_id),
-    company_id INT NULL
+    FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
 
+-- Invoice Services Table
 CREATE TABLE IF NOT EXISTS invoice_services (
     id INT PRIMARY KEY AUTO_INCREMENT,
     invoice_id INT NOT NULL,
     service_id INT NOT NULL,
     qty INT NOT NULL,
     customer_po VARCHAR(50) NOT NULL UNIQUE,
-    -- status ENUM('pending', 'paid', 'overdue', 'cancelled') DEFAULT 'pending',
+    company_id INT NOT NULL,
     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
-    FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE
+    FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
+    FOREIGN KEY (company_id) REFERENCES companies(company_id)
 );
-
--- 4. Set all existing data to DigiSat (company_id = 1)
-UPDATE customers SET company_id = 1 WHERE company_id IS NULL;
-UPDATE services SET company_id = 1 WHERE company_id IS NULL;
-UPDATE banks SET company_id = 1 WHERE company_id IS NULL;
-UPDATE invoices SET company_id = 1 WHERE company_id IS NULL;
-
--- 5. Make company_id NOT NULL
-ALTER TABLE customers MODIFY company_id INT NOT NULL;
-ALTER TABLE services MODIFY company_id INT NOT NULL;
-ALTER TABLE banks MODIFY company_id INT NOT NULL;
-ALTER TABLE invoices MODIFY company_id INT NOT NULL;
-
--- 6. Add foreign key constraints
-ALTER TABLE customers ADD CONSTRAINT fk_customers_company FOREIGN KEY (company_id) REFERENCES companies(company_id);
-ALTER TABLE services ADD CONSTRAINT fk_services_company FOREIGN KEY (company_id) REFERENCES companies(company_id);
-ALTER TABLE banks ADD CONSTRAINT fk_banks_company FOREIGN KEY (company_id) REFERENCES companies(company_id);
-ALTER TABLE invoices ADD CONSTRAINT fk_invoices_company FOREIGN KEY (company_id) REFERENCES companies(company_id);

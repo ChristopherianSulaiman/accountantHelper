@@ -459,8 +459,8 @@ app.post('/api/invoices', async (req, res) => {
       // Insert invoice_services
       for (const service of services) {
         await connection.execute(
-          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po) VALUES (?, ?, ?, ?)',
-          [invoiceId, service.service_id, service.qty, service.customer_po]
+          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po, company_id) VALUES (?, ?, ?, ?, ?)',
+          [invoiceId, service.service_id, service.qty, service.customer_po, company_id]
         );
       }
 
