@@ -21,6 +21,8 @@ import {
   MenuItem,
   FormControlLabel,
   Collapse,
+  Grid,
+  FormHelperText,
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -537,7 +539,14 @@ const Print = () => {
 
       {/* Print Dialog/Modal */}
       <Dialog open={showDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
-        <DialogTitle>Print Invoice</DialogTitle>
+        <DialogTitle>
+          <Typography variant="h5" component="div">
+            Print Invoice
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary">
+            {selectedInvoice?.invoice_number}
+          </Typography>
+        </DialogTitle>
         <DialogContent>
           {/* Error message inside dialog */}
           {error && (
@@ -545,112 +554,198 @@ const Print = () => {
               {error}
             </Alert>
           )}
-          {/* Bank Multi-Select */}
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="bank-select-label">Select Bank(s)</InputLabel>
-            <Select
-              labelId="bank-select-label"
-              multiple
-              value={selectedBanks}
-              onChange={handleBankChange}
-              renderValue={(selected) =>
-                banks
-                  .filter((bank) => selected.includes(bank.bank_id))
-                  .map((bank) => bank.bank_name)
-                  .join(', ')
-              }
-            >
-              {banks.map((bank) => (
-                <MenuItem key={bank.bank_id} value={bank.bank_id}>
-                  <Checkbox checked={selectedBanks.indexOf(bank.bank_id) > -1} />
-                  <ListItemText primary={bank.bank_name} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
 
-          {/* Invoice Due Date and Date Billed */}
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              label="Due Date"
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              required
-              autoComplete="off"
-            />
-            <TextField
-              label="Date Billed"
-              type="date"
-              value={dateBilled}
-              onChange={e => setDateBilled(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              required
-              autoComplete="off"
-            />
-          </Box>
-          {/* Per-service date pickers */}
-          {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1">Set Period for Each Service:</Typography>
-              {selectedInvoice.services.map(service => (
-                <Box key={service.service_id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                  <Typography sx={{ minWidth: 120 }}>{service.service_name}</Typography>
+          <Box sx={{ mt: 2 }}>
+            {/* Invoice Dates Section */}
+            <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+              <Typography variant="h6" gutterBottom>
+                Invoice Dates
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
                   <TextField
-                    label="Start Date"
+                    fullWidth
+                    label="Due Date"
                     type="date"
-                    value={serviceDates[service.service_id]?.start_date || ''}
-                    onChange={e => handleServiceDateChange(service.service_id, 'start_date', e.target.value)}
+                    value={dueDate}
+                    onChange={e => setDueDate(e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    size="small"
+                    required
+                    autoComplete="off"
+                    helperText="When the payment is due"
                   />
+                </Grid>
+                <Grid item xs={12} md={6}>
                   <TextField
-                    label="End Date"
+                    fullWidth
+                    label="Date Billed"
                     type="date"
-                    value={serviceDates[service.service_id]?.end_date || ''}
-                    onChange={e => handleServiceDateChange(service.service_id, 'end_date', e.target.value)}
+                    value={dateBilled}
+                    onChange={e => setDateBilled(e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    size="small"
+                    required
+                    autoComplete="off"
+                    helperText="When the invoice was issued"
                   />
-                </Box>
-              ))}
-            </Box>
-          )}
-          {/* Per-service NRC checkboxes and NRC qty */}
-          {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1">Include NRC (One-time Setup) for:</Typography>
-              {selectedInvoice.services.map(service => (
-                <Box key={service.service_id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={!!nrcIncluded[service.service_id]}
-                        onChange={() => handleNrcCheckbox(service.service_id)}
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Bank Selection Section */}
+            <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+              <Typography variant="h6" gutterBottom>
+                Payment Information
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel id="bank-select-label">Select Bank(s) for Payment</InputLabel>
+                <Select
+                  labelId="bank-select-label"
+                  multiple
+                  value={selectedBanks}
+                  onChange={handleBankChange}
+                  renderValue={(selected) =>
+                    banks
+                      .filter((bank) => selected.includes(bank.bank_id))
+                      .map((bank) => bank.bank_name)
+                      .join(', ')
+                  }
+                >
+                  {banks.map((bank) => (
+                    <MenuItem key={bank.bank_id} value={bank.bank_id}>
+                      <Checkbox checked={selectedBanks.indexOf(bank.bank_id) > -1} />
+                      <ListItemText 
+                        primary={bank.bank_name}
+                        secondary={`${bank.acc_number} (${bank.currency})`}
                       />
-                    }
-                    label={service.service_name}
-                  />
-                  {nrcIncluded[service.service_id] && service.nrc && (
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  Select one or more banks where payment can be made
+                </FormHelperText>
+              </FormControl>
+            </Paper>
+
+            {/* Service Periods Section */}
+            {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
+              <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+                <Typography variant="h6" gutterBottom>
+                  Service Periods
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Set the billing period for each service
+                </Typography>
+                {selectedInvoice.services.map(service => (
+                  <Box 
+                    key={service.service_id} 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 2, 
+                      mb: 2,
+                      p: 2,
+                      bgcolor: 'background.paper',
+                      borderRadius: 1
+                    }}
+                  >
+                    <Box sx={{ minWidth: 200 }}>
+                      <Typography variant="subtitle2">{service.service_name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        PO: {service.customer_po}
+                      </Typography>
+                    </Box>
                     <TextField
-                      label="NRC Qty"
-                      type="number"
+                      label="Start Date"
+                      type="date"
+                      value={serviceDates[service.service_id]?.start_date || ''}
+                      onChange={e => handleServiceDateChange(service.service_id, 'start_date', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
                       size="small"
-                      value={nrcQty[service.service_id] || 1}
-                      onChange={e => handleNrcQtyChange(service.service_id, e.target.value)}
-                      inputProps={{ min: 1, step: 1 }}
-                      sx={{ width: 100 }}
+                      sx={{ flex: 1 }}
                     />
-                  )}
-                </Box>
-              ))}
-            </Box>
-          )}
+                    <TextField
+                      label="End Date"
+                      type="date"
+                      value={serviceDates[service.service_id]?.end_date || ''}
+                      onChange={e => handleServiceDateChange(service.service_id, 'end_date', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      size="small"
+                      sx={{ flex: 1 }}
+                    />
+                  </Box>
+                ))}
+              </Paper>
+            )}
+
+            {/* NRC Section */}
+            {selectedInvoice && selectedInvoice.services && selectedInvoice.services.length > 0 && (
+              <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+                <Typography variant="h6" gutterBottom>
+                  One-time Setup Fees (NRC)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Select which services should include their one-time setup fee
+                </Typography>
+                {selectedInvoice.services.map(service => (
+                  <Box 
+                    key={service.service_id} 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 2, 
+                      mb: 2,
+                      p: 2,
+                      bgcolor: 'background.paper',
+                      borderRadius: 1
+                    }}
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={!!nrcIncluded[service.service_id]}
+                          onChange={() => handleNrcCheckbox(service.service_id)}
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="subtitle2">{service.service_name}</Typography>
+                          {service.nrc && (
+                            <Typography variant="caption" color="text.secondary">
+                              NRC: Rp {parseFloat(service.nrc).toLocaleString()}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                    {nrcIncluded[service.service_id] && service.nrc && (
+                      <TextField
+                        label="Quantity"
+                        type="number"
+                        size="small"
+                        value={nrcQty[service.service_id] || 1}
+                        onChange={e => handleNrcQtyChange(service.service_id, e.target.value)}
+                        inputProps={{ min: 1, step: 1 }}
+                        sx={{ width: 100 }}
+                      />
+                    )}
+                  </Box>
+                ))}
+              </Paper>
+            )}
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
-          <Button variant="contained" color="primary" onClick={handlePrintPDF}>Print / Download PDF</Button>
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleDialogClose} color="secondary">
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handlePrintPDF}
+            disabled={!dueDate || !dateBilled || selectedBanks.length === 0}
+          >
+            Print / Download PDF
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

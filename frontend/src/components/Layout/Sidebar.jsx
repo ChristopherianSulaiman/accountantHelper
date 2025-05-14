@@ -33,7 +33,7 @@ const menuItems = [
   { text: 'Banks', icon: <AccountBalanceIcon />, path: '/banks' },
   { text: 'Customers', icon: <PeopleIcon />, path: '/customers' },
   { text: 'Print', icon: <PrintIcon />, path: '/print' },
-  { text: 'Sample Bill', icon: <DescriptionIcon />, path: '/sample-bill' },
+  // { text: 'Sample Bill', icon: <DescriptionIcon />, path: '/sample-bill' },
 ];
 
 const Sidebar = () => {
