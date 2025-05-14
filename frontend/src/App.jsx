@@ -7,6 +7,7 @@ import Invoices from './pages/Invoices';
 import NewInvoice from './pages/NewInvoice';
 import EditInvoice from './pages/EditInvoice';
 import Services from './pages/Services';
+import EditService from './pages/EditService';
 import Customers from './pages/Customers';
 import Banks from './pages/Banks';
 import Print from './pages/Print';
@@ -55,6 +56,7 @@ function App() {
             <Route path="/invoices/new" element={<NewInvoice />} />
             <Route path="/invoices/edit/:id" element={<EditInvoice />} />
             <Route path="/services" element={<Services />} />
+            <Route path="/services/edit/:id" element={<EditService />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/banks" element={<Banks />} />
             <Route path="/print" element={<Print />} />

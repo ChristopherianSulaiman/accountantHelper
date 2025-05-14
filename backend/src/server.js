@@ -497,6 +497,24 @@ app.delete('/api/banks/:id', async (req, res) => {
   }
 });
 
+// Get a single service by ID
+app.get('/api/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [services] = await pool.execute(
+      `SELECT * FROM services WHERE service_id = ?`,
+      [id]
+    );
+    if (services.length === 0) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+    res.json(services[0]);
+  } catch (error) {
+    console.error('Error fetching service:', error);
+    res.status(500).json({ message: 'Error fetching service' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
