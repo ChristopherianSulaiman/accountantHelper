@@ -371,9 +371,19 @@ const Banks = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {banks.map((bank) => (
-              <BankRow key={bank.bank_id} bank={bank} onEdit={handleEdit} onDelete={handleDelete} />
-            ))}
+            {banks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No banks found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              banks.map((bank) => (
+                <BankRow key={bank.bank_id} bank={bank} onEdit={handleEdit} onDelete={handleDelete} />
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
