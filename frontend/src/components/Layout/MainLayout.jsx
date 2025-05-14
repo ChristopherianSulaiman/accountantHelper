@@ -1,6 +1,7 @@
 import { Box, AppBar, Toolbar, Typography, IconButton } from '@mui/material';
 import { Notifications as NotificationsIcon, AccountCircle } from '@mui/icons-material';
 import Sidebar from './Sidebar';
+import CompanySelector from '../CompanySelector';
 
 const MainLayout = ({ children }) => {
   return (
@@ -20,6 +21,9 @@ const MainLayout = ({ children }) => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Dashboard
           </Typography>
+          <Box sx={{ minWidth: 200, mr: 2 }}>
+            <CompanySelector />
+          </Box>
           <IconButton color="inherit">
             <NotificationsIcon />
           </IconButton>

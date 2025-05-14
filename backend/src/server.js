@@ -73,13 +73,17 @@ app.get('/', (req, res) => {
 
 // Get all services endpoint
 app.get('/api/services', async (req, res) => {
+  const { company_id } = req.query;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const [services] = await pool.execute(`
-      SELECT s.*, c.cust_name 
-      FROM services s
-      LEFT JOIN customers c ON s.cust_id = c.cust_id
-      ORDER BY s.start_date DESC
-    `);
+    const [services] = await pool.execute(
+      `SELECT s.*, c.cust_name 
+       FROM services s
+       LEFT JOIN customers c ON s.cust_id = c.cust_id
+       WHERE s.company_id = ?
+       ORDER BY s.start_date DESC`,
+      [company_id]
+    );
     res.json(services);
   } catch (error) {
     console.error('Error fetching services:', error);
@@ -89,18 +93,13 @@ app.get('/api/services', async (req, res) => {
 
 // Create service endpoint
 app.post('/api/services', async (req, res) => {
+  const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id, company_id } = req.body;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id } = req.body;
-    
-    if (!cust_id) {
-      return res.status(400).json({ message: 'Customer ID is required' });
-    }
-
     const [result] = await pool.execute(
-      'INSERT INTO services (service_type, service_name, nrc, mrc, start_date, end_date, cust_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [service_type, service_name, nrc, mrc, start_date, end_date, cust_id]
+      'INSERT INTO services (service_type, service_name, nrc, mrc, start_date, end_date, cust_id, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, company_id]
     );
-
     res.status(201).json({
       message: 'Service created successfully',
       serviceId: result.insertId
@@ -272,10 +271,12 @@ app.delete('/api/services/:id', async (req, res) => {
 
 // Get all invoices endpoint
 app.get('/api/invoices', async (req, res) => {
+  const { company_id } = req.query;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    // Get all invoices
-    const [invoices] = await pool.execute(`
-      SELECT 
+    // Get all invoices for the company
+    const [invoices] = await pool.execute(
+      `SELECT 
         i.invoice_id,
         i.invoice_number,
         i.cust_id,
@@ -283,23 +284,21 @@ app.get('/api/invoices', async (req, res) => {
         i.status
       FROM invoices i
       LEFT JOIN customers c ON i.cust_id = c.cust_id
-      ORDER BY i.invoice_id DESC
-    `);
-
+      WHERE i.company_id = ?
+      ORDER BY i.invoice_id DESC`,
+      [company_id]
+    );
     // For each invoice, get its services
     for (const invoice of invoices) {
-      const [services] = await pool.execute(`
-        SELECT s.service_id, s.service_name, s.service_type, s.nrc, s.mrc, s.start_date, s.end_date, isv.qty, isv.customer_po
-        FROM invoice_services isv
-        LEFT JOIN services s ON isv.service_id = s.service_id
-        WHERE isv.invoice_id = ?
-      `, [invoice.invoice_id]);
+      const [services] = await pool.execute(
+        `SELECT s.service_id, s.service_name, s.service_type, s.nrc, s.mrc, s.start_date, s.end_date, isv.qty, isv.customer_po
+         FROM invoice_services isv
+         LEFT JOIN services s ON isv.service_id = s.service_id
+         WHERE isv.invoice_id = ?`,
+        [invoice.invoice_id]
+      );
       invoice.services = services;
     }
-
-    // Debug log
-    console.log('Fetched invoices with services:', invoices);
-
     res.json(invoices);
   } catch (error) {
     console.error('Error fetching invoices:', error);
@@ -429,9 +428,9 @@ app.delete('/api/invoices/:id', async (req, res) => {
 
 // Create invoice endpoint (multi-service)
 app.post('/api/invoices', async (req, res) => {
+  const { invoice_number, cust_id, status, services, company_id } = req.body;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const { invoice_number, cust_id, status, services } = req.body;
-
     // Relaxed validation: just require a non-empty string
     if (!invoice_number || typeof invoice_number !== 'string') {
       return res.status(400).json({ message: 'Invoice number is required.' });
@@ -452,8 +451,8 @@ app.post('/api/invoices', async (req, res) => {
     try {
       // Insert invoice
       const [result] = await connection.execute(
-        'INSERT INTO invoices (invoice_number, cust_id, status) VALUES (?, ?, ?)',
-        [invoice_number, cust_id, status]
+        'INSERT INTO invoices (invoice_number, cust_id, status, company_id) VALUES (?, ?, ?, ?)',
+        [invoice_number, cust_id, status, company_id]
       );
       const invoiceId = result.insertId;
 
@@ -481,8 +480,10 @@ app.post('/api/invoices', async (req, res) => {
 
 // Get all customers endpoint
 app.get('/api/customers', async (req, res) => {
+  const { company_id } = req.query;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const [customers] = await pool.execute('SELECT * FROM customers ORDER BY cust_id DESC');
+    const [customers] = await pool.execute('SELECT * FROM customers WHERE company_id = ? ORDER BY cust_id DESC', [company_id]);
     res.json(customers);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -492,14 +493,13 @@ app.get('/api/customers', async (req, res) => {
 
 // Create customer endpoint
 app.post('/api/customers', async (req, res) => {
+  const { cust_name, cust_address, company_id } = req.body;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const { cust_name, cust_address } = req.body;
-    
     const [result] = await pool.execute(
-      'INSERT INTO customers (cust_name, cust_address) VALUES (?, ?)',
-      [cust_name, cust_address]
+      'INSERT INTO customers (cust_name, cust_address, company_id) VALUES (?, ?, ?)',
+      [cust_name, cust_address, company_id]
     );
-
     res.status(201).json({
       message: 'Customer created successfully',
       customerId: result.insertId
@@ -594,8 +594,10 @@ app.delete('/api/customers/:id', async (req, res) => {
 
 // Get all banks endpoint
 app.get('/api/banks', async (req, res) => {
+  const { company_id } = req.query;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const [banks] = await pool.execute('SELECT * FROM banks ORDER BY bank_id DESC');
+    const [banks] = await pool.execute('SELECT * FROM banks WHERE company_id = ? ORDER BY bank_id DESC', [company_id]);
     res.json(banks);
   } catch (error) {
     console.error('Error fetching banks:', error);
@@ -605,23 +607,13 @@ app.get('/api/banks', async (req, res) => {
 
 // Create bank endpoint
 app.post('/api/banks', async (req, res) => {
+  const { bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type, company_id } = req.body;
+  if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
-    const { 
-      bank_name, 
-      bank_address, 
-      bank_code, 
-      swift_code, 
-      iban_code, 
-      currency, 
-      acc_number, 
-      type 
-    } = req.body;
-    
     const [result] = await pool.execute(
-      'INSERT INTO banks (bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type]
+      'INSERT INTO banks (bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [bank_name, bank_address, bank_code, swift_code, iban_code, currency, acc_number, type, company_id]
     );
-
     res.status(201).json({
       message: 'Bank created successfully',
       bankId: result.insertId
@@ -698,6 +690,81 @@ app.get('/api/services/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching service:', error);
     res.status(500).json({ message: 'Error fetching service' });
+  }
+});
+
+// 1. Get all companies
+app.get('/api/companies', async (req, res) => {
+  try {
+    const [companies] = await pool.execute('SELECT * FROM companies ORDER BY company_id');
+    res.json(companies);
+  } catch (error) {
+    console.error('Error fetching companies:', error);
+    res.status(500).json({ message: 'Error fetching companies' });
+  }
+});
+
+// POST /api/companies - create a new company
+app.post('/api/companies', async (req, res) => {
+  const { company_name, company_address } = req.body;
+  if (!company_name) return res.status(400).json({ message: 'company_name is required' });
+  try {
+    const [result] = await pool.execute(
+      'INSERT INTO companies (company_name, company_address) VALUES (?, ?)',
+      [company_name, company_address || '']
+    );
+    res.status(201).json({
+      company_id: result.insertId,
+      company: {
+        company_id: result.insertId,
+        company_name,
+        company_address: company_address || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error creating company:', error);
+    res.status(500).json({ message: 'Error creating company' });
+  }
+});
+
+// PUT /api/companies/:id - update a company
+app.put('/api/companies/:id', async (req, res) => {
+  const { id } = req.params;
+  const { company_name, company_address } = req.body;
+  if (!company_name) return res.status(400).json({ message: 'company_name is required' });
+  try {
+    const [result] = await pool.execute(
+      'UPDATE companies SET company_name = ?, company_address = ? WHERE company_id = ?',
+      [company_name, company_address || '', id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+    res.json({
+      message: 'Company updated successfully',
+      company: { company_id: id, company_name, company_address: company_address || '' }
+    });
+  } catch (error) {
+    console.error('Error updating company:', error);
+    res.status(500).json({ message: 'Error updating company' });
+  }
+});
+
+// DELETE /api/companies/:id - delete a company
+app.delete('/api/companies/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.execute(
+      'DELETE FROM companies WHERE company_id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+    res.json({ message: 'Company deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    res.status(500).json({ message: 'Error deleting company' });
   }
 });
 

@@ -37,6 +37,7 @@ import { format, parse } from 'date-fns';
 import axios from 'axios';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Search as SearchIcon } from '@mui/icons-material';
+import { useCompany } from '../components/CompanyContext';
 
 const ServiceRow = ({ service, onDelete }) => {
   const [open, setOpen] = useState(false);
@@ -119,6 +120,7 @@ const ServiceRow = ({ service, onDelete }) => {
 };
 
 const Services = () => {
+  const { company } = useCompany();
   const navigate = useNavigate();
   const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -149,16 +151,17 @@ const Services = () => {
   ];
 
   useEffect(() => {
+    if (!company) return;
     fetchServices();
     fetchCustomers();
-  }, []);
+  }, [company]);
 
   const fetchServices = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/services');
+      const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
       setServices(response.data);
     } catch (error) {
-      console.error('Error fetching services:', error);
       setError('Failed to load services. Please try again later.');
     } finally {
       setLoading(false);
@@ -166,11 +169,11 @@ const Services = () => {
   };
 
   const fetchCustomers = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/customers');
+      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
     } catch (error) {
-      console.error('Error fetching customers:', error);
       setError('Failed to load customers. Please try again.');
     }
   };
@@ -186,7 +189,7 @@ const Services = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/api/services', formData);
+      await axios.post('http://localhost:3000/api/services', { ...formData, company_id: company.company_id });
       setShowForm(false);
       setFormData({
         service_type: '',
@@ -207,7 +210,7 @@ const Services = () => {
   const handleDelete = async (serviceId) => {
     if (window.confirm('Are you sure you want to delete this service? This will also delete all related invoices.')) {
       try {
-        await axios.delete(`http://localhost:3000/api/services/${serviceId}`);
+        await axios.delete(`http://localhost:3000/api/services/${serviceId}`, { data: { company_id: company.company_id } });
         fetchServices(); // Refresh the services list
       } catch (error) {
         console.error('Error deleting service:', error);
@@ -232,6 +235,14 @@ const Services = () => {
       return dateB - dateA;
     }
   });
+
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to view services.</Typography>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (

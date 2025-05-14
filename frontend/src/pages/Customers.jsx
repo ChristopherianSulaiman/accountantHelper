@@ -31,6 +31,7 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
+import { useCompany } from '../components/CompanyContext';
 
 // Customer row component for expandable rows
 const CustomerRow = ({ customer, onEdit, onDelete }) => {
@@ -87,6 +88,7 @@ const CustomerRow = ({ customer, onEdit, onDelete }) => {
 };
 
 const Customers = () => {
+  const { company } = useCompany();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,48 +101,41 @@ const Customers = () => {
     customer_address: ''
   });
 
+  useEffect(() => {
+    if (!company) return;
+    fetchCustomers();
+  }, [company]);
+
   const fetchCustomers = async () => {
+    if (!company) return;
     try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/customers');
+      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
       setError(null);
     } catch (error) {
-      console.error('Error fetching customers:', error);
       setError('Failed to load customers. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!company) return;
     try {
-      if (editingCustomer) {
-        await axios.put(`http://localhost:3000/api/customers/${editingCustomer.cust_id}`, {
-          cust_name: formData.customer_name,
-          cust_address: formData.customer_address
-        });
-      } else {
-        await axios.post('http://localhost:3000/api/customers', {
-          cust_name: formData.customer_name,
-          cust_address: formData.customer_address
-        });
-      }
+      await axios.post('http://localhost:3000/api/customers', {
+        cust_name: formData.customer_name,
+        cust_address: formData.customer_address,
+        company_id: company.company_id
+      });
       setShowForm(false);
-      setEditingCustomer(null);
       setFormData({
         customer_name: '',
         customer_address: ''
       });
       fetchCustomers();
     } catch (error) {
-      console.error('Error saving customer:', error);
-      setError('Failed to save customer. Please try again.');
+      setError('Failed to create customer. Please try again.');
     }
   };
 
@@ -188,6 +183,14 @@ const Customers = () => {
       customer_address: ''
     });
   };
+
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to view customers.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

@@ -35,6 +35,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import { useCompany } from '../components/CompanyContext';
 
 // Bank row component for expandable rows
 const BankRow = ({ bank, onEdit, onDelete }) => {
@@ -103,6 +104,7 @@ const BankRow = ({ bank, onEdit, onDelete }) => {
 };
 
 const Banks = () => {
+  const { company } = useCompany();
   const [banks, setBanks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -121,36 +123,32 @@ const Banks = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bankToDelete, setBankToDelete] = useState(null);
 
+  useEffect(() => {
+    if (!company) return;
+    fetchBanks();
+  }, [company]);
+
   const fetchBanks = async () => {
+    if (!company) return;
     try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/banks');
+      const response = await axios.get(`http://localhost:3000/api/banks?company_id=${company.company_id}`);
       setBanks(response.data);
-      setError(null);
     } catch (error) {
-      console.error('Error fetching banks:', error);
       setError('Failed to load banks. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchBanks();
-  }, []);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!company) return;
     try {
-      if (editingBank) {
-        // Edit mode
-        await axios.put(`http://localhost:3000/api/banks/${editingBank.bank_id}`, formData);
-      } else {
-        // Create mode
-        await axios.post('http://localhost:3000/api/banks', formData);
-      }
+      await axios.post('http://localhost:3000/api/banks', {
+        ...formData,
+        company_id: company.company_id
+      });
       setShowForm(false);
-      setEditingBank(null);
       setFormData({
         bank_name: '',
         bank_address: '',
@@ -163,8 +161,7 @@ const Banks = () => {
       });
       fetchBanks();
     } catch (error) {
-      console.error('Error saving bank:', error);
-      setError('Failed to save bank. Please try again.');
+      setError('Failed to create bank. Please try again.');
     }
   };
 
@@ -231,6 +228,14 @@ const Banks = () => {
     setDeleteDialogOpen(false);
     setBankToDelete(null);
   };
+
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to view banks.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>

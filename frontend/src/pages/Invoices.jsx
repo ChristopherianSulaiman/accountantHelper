@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import { format, parse } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useCompany } from '../components/CompanyContext';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -54,6 +55,7 @@ const statusOptions = [
 ];
 
 const Invoices = () => {
+  const { company } = useCompany();
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [services, setServices] = useState([]);
@@ -69,10 +71,11 @@ const Invoices = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!company) return;
     fetchInvoices();
     fetchCustomers();
     fetchAllServices();
-  }, []);
+  }, [company]);
 
   useEffect(() => {
     if (error) {
@@ -86,8 +89,9 @@ const Invoices = () => {
   }, [error]);
 
   const fetchInvoices = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/invoices');
+      const response = await axios.get(`http://localhost:3000/api/invoices?company_id=${company.company_id}`);
       setInvoices(response.data);
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -98,8 +102,9 @@ const Invoices = () => {
   };
 
   const fetchCustomers = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/customers');
+      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -108,8 +113,9 @@ const Invoices = () => {
   };
 
   const fetchAllServices = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/services');
+      const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
       setAllServices(response.data);
     } catch (error) {
       console.error('Error fetching all services:', error);
@@ -123,7 +129,7 @@ const Invoices = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      await axios.delete(`http://localhost:3000/api/invoices/${invoiceToDelete.invoice_id}`);
+      await axios.delete(`http://localhost:3000/api/invoices/${invoiceToDelete.invoice_id}?company_id=${company.company_id}`);
       setDeleteDialogOpen(false);
       setInvoiceToDelete(null);
       fetchInvoices();
@@ -148,6 +154,14 @@ const Invoices = () => {
     if (!aStarts && bStarts) return 1;
     return a.invoice_number.localeCompare(b.invoice_number);
   });
+
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to view invoices.</Typography>
+      </Box>
+    );
+  }
 
   if (loading) {
     return (

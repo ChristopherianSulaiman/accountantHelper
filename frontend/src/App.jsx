@@ -12,6 +12,7 @@ import Customers from './pages/Customers';
 import Banks from './pages/Banks';
 import Print from './pages/Print';
 import SampleBill from './pages/SampleBill';
+import { CompanyProvider } from './components/CompanyContext';
 
 // Create a theme instance
 const theme = createTheme({
@@ -46,26 +47,28 @@ const theme = createTheme({
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/invoices/new" element={<NewInvoice />} />
-            <Route path="/invoices/edit/:id" element={<EditInvoice />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/services/edit/:id" element={<EditService />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/banks" element={<Banks />} />
-            <Route path="/print" element={<Print />} />
-            <Route path="/sample-bill" element={<SampleBill />} />
-            {/* Add more routes as needed */}
-          </Routes>
-        </MainLayout>
-      </Router>
-    </ThemeProvider>
+    <CompanyProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <MainLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/invoices/new" element={<NewInvoice />} />
+              <Route path="/invoices/edit/:id" element={<EditInvoice />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/services/edit/:id" element={<EditService />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/banks" element={<Banks />} />
+              <Route path="/print" element={<Print />} />
+              <Route path="/sample-bill" element={<SampleBill />} />
+              {/* Add more routes as needed */}
+            </Routes>
+          </MainLayout>
+        </Router>
+      </ThemeProvider>
+    </CompanyProvider>
   );
 }
 
