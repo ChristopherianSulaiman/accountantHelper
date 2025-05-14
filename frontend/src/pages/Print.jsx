@@ -309,9 +309,9 @@ const Print = () => {
       doc.text('Invoice', 150, 22);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 150, 32);
-      doc.text(`Date      : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
-      doc.text(`Due Date  : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
+      doc.text(`Invoice No.   : ${selectedInvoice.invoice_number}`, 150, 32);
+      doc.text(`Date             : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
+      doc.text(`Due Date      : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
 
       // --- TABLE ---
       y += 12;
@@ -415,7 +415,7 @@ const Print = () => {
       doc.setFontSize(11);
       doc.text('Make all checks payable to :', 14, yFooter + 7);
       doc.setFont('helvetica', 'bold');
-      doc.text('PT. Digital Wireless Indonesia', 14, yFooter + 14);
+      doc.text(company ? company.company_name : 'Company Name Not Found', 14, yFooter + 14);
       doc.setFont('helvetica', 'normal');
       let yBank = yFooter + 21;
       if (Array.isArray(banks) && selectedBanks.every(id => banks.some(b => b.bank_id === id))) {
