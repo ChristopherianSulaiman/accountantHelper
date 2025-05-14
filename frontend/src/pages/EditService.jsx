@@ -7,7 +7,7 @@ import {
   TextField,
   Grid,
   Alert,
-  Snackbar,
+  CircularProgress,
   FormControl,
   InputLabel,
   Select,
@@ -16,6 +16,8 @@ import {
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useCompany } from '../components/CompanyContext';
+import axios from 'axios';
 
 const serviceTypes = [
   'internet',
@@ -29,10 +31,10 @@ const serviceTypes = [
 const EditService = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { company } = useCompany();
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState([]);
   const [formData, setFormData] = useState({
     service_type: '',
     service_name: '',
@@ -44,42 +46,40 @@ const EditService = () => {
   });
 
   useEffect(() => {
+    if (!company) return;
     // Fetch customers
-    fetch('http://localhost:3000/api/customers')
-      .then(res => res.json())
-      .then(setCustomers);
-  }, []);
-
-  // Fetch service data on mount
-  useEffect(() => {
-    async function fetchService() {
-      setLoading(true);
+    const fetchCustomers = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/services/${id}`);
-        if (!res.ok) throw new Error('Service not found');
-        const data = await res.json();
-        // Format date fields as YYYY-MM-DD
-        const formatDate = (dateStr) => {
-          if (!dateStr) return '';
-          return dateStr.split('T')[0];
-        };
+        const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+        setCustomers(response.data);
+      } catch (error) {
+        setError('Failed to load customers. Please try again.');
+      }
+    };
+    fetchCustomers();
+
+    // Fetch service data
+    const fetchService = async () => {
+      try {
+        const response = await axios.get(`http://localhost:3000/api/services/${id}`);
+        const data = response.data;
         setFormData({
           service_type: data.service_type,
           service_name: data.service_name,
           nrc: data.nrc,
           mrc: data.mrc,
-          start_date: formatDate(data.start_date),
-          end_date: formatDate(data.end_date),
+          start_date: data.start_date.split('T')[0], // Convert to YYYY-MM-DD format
+          end_date: data.end_date.split('T')[0], // Convert to YYYY-MM-DD format
           cust_id: data.cust_id
         });
-      } catch (err) {
-        setError('Failed to load service.');
+      } catch (error) {
+        setError('Failed to load service. Please try again.');
       } finally {
         setLoading(false);
       }
-    }
+    };
     fetchService();
-  }, [id]);
+  }, [id, company]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -89,29 +89,34 @@ const EditService = () => {
     }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:3000/api/services/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      await axios.put(`http://localhost:3000/api/services/${id}`, {
+        ...formData,
+        company_id: company.company_id
       });
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || responseData.message || 'Failed to update service');
-      }
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/services');
-      }, 2000);
-    } catch (err) {
-      setError(err.message || 'Failed to update service. Please try again.');
+      navigate('/services');
+    } catch (error) {
+      console.error('Error updating service:', error);
+      setError('Failed to update service. Please try again.');
     }
   };
 
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to edit services.</Typography>
+      </Box>
+    );
+  }
+
   if (loading) {
-    return <Typography>Loading...</Typography>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -126,15 +131,15 @@ const EditService = () => {
           Back to Services
         </Button>
       </Box>
+
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required>
-                  <InputLabel id="service-type-label">Service Type</InputLabel>
+                  <InputLabel>Service Type</InputLabel>
                   <Select
-                    labelId="service-type-label"
                     name="service_type"
                     value={formData.service_type}
                     onChange={handleInputChange}
@@ -191,7 +196,9 @@ const EditService = () => {
                   value={formData.start_date}
                   onChange={handleInputChange}
                   required
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -203,27 +210,21 @@ const EditService = () => {
                   value={formData.end_date}
                   onChange={handleInputChange}
                   required
-                  InputLabelProps={{ shrink: true }}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
                 <FormControl fullWidth required>
-                  <InputLabel id="customer-label">Customer</InputLabel>
+                  <InputLabel>Customer</InputLabel>
                   <Select
-                    labelId="customer-label"
                     name="cust_id"
                     value={formData.cust_id}
                     onChange={handleInputChange}
                     label="Customer"
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 300
-                        }
-                      }
-                    }}
                   >
-                    {customers.map((customer) => (
+                    {customers.map(customer => (
                       <MenuItem key={customer.cust_id} value={customer.cust_id}>
                         {customer.cust_name}
                       </MenuItem>
@@ -240,18 +241,11 @@ const EditService = () => {
           </form>
         </CardContent>
       </Card>
-      <Snackbar
-        open={success}
-        autoHideDuration={2000}
-        onClose={() => setSuccess(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="success" sx={{ width: '100%' }}>
-          Service updated successfully!
-        </Alert>
-      </Snackbar>
+
       {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
       )}
     </Box>
   );

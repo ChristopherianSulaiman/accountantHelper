@@ -123,19 +123,30 @@ const Customers = () => {
     e.preventDefault();
     if (!company) return;
     try {
-      await axios.post('http://localhost:3000/api/customers', {
-        cust_name: formData.customer_name,
-        cust_address: formData.customer_address,
-        company_id: company.company_id
-      });
+      if (editingCustomer) {
+        // Update existing customer
+        await axios.put(`http://localhost:3000/api/customers/${editingCustomer.cust_id}`, {
+          cust_name: formData.customer_name,
+          cust_address: formData.customer_address,
+          company_id: company.company_id
+        });
+      } else {
+        // Create new customer
+        await axios.post('http://localhost:3000/api/customers', {
+          cust_name: formData.customer_name,
+          cust_address: formData.customer_address,
+          company_id: company.company_id
+        });
+      }
       setShowForm(false);
       setFormData({
         customer_name: '',
         customer_address: ''
       });
+      setEditingCustomer(null);
       fetchCustomers();
     } catch (error) {
-      setError('Failed to create customer. Please try again.');
+      setError('Failed to ' + (editingCustomer ? 'update' : 'create') + ' customer. Please try again.');
     }
   };
 

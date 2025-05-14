@@ -144,10 +144,19 @@ const Banks = () => {
     e.preventDefault();
     if (!company) return;
     try {
-      await axios.post('http://localhost:3000/api/banks', {
-        ...formData,
-        company_id: company.company_id
-      });
+      if (editingBank) {
+        // Update existing bank
+        await axios.put(`http://localhost:3000/api/banks/${editingBank.bank_id}`, {
+          ...formData,
+          company_id: company.company_id
+        });
+      } else {
+        // Create new bank
+        await axios.post('http://localhost:3000/api/banks', {
+          ...formData,
+          company_id: company.company_id
+        });
+      }
       setShowForm(false);
       setFormData({
         bank_name: '',
@@ -159,9 +168,10 @@ const Banks = () => {
         acc_number: '',
         type: ''
       });
+      setEditingBank(null);
       fetchBanks();
     } catch (error) {
-      setError('Failed to create bank. Please try again.');
+      setError('Failed to ' + (editingBank ? 'update' : 'create') + ' bank. Please try again.');
     }
   };
 

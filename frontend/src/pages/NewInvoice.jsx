@@ -234,7 +234,7 @@ const NewInvoice = () => {
             service_id,
             qty: serviceDetails[service_id].qty,
             customer_po: serviceDetails[service_id].customer_po,
-            status
+            company_id: company.company_id
           }))
         })
       });

@@ -10,6 +10,7 @@ import {
   Alert,
   Snackbar,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,6 +22,8 @@ import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import ListItemText from '@mui/material/ListItemText';
 import Checkbox from '@mui/material/Checkbox';
+import { useCompany } from '../components/CompanyContext';
+import axios from 'axios';
 
 const statusOptions = [
   { value: 'pending', label: 'Pending' },
@@ -32,6 +35,7 @@ const statusOptions = [
 const EditInvoice = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { company } = useCompany();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -46,21 +50,27 @@ const EditInvoice = () => {
   const [invoiceLoaded, setInvoiceLoaded] = useState(false);
 
   useEffect(() => {
+    if (!company) return;
     // Fetch customers
-    fetch('http://localhost:3000/api/customers')
-      .then(res => res.json())
-      .then(setCustomers);
-  }, []);
+    const fetchCustomers = async () => {
+      try {
+        const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+        setCustomers(response.data);
+      } catch (error) {
+        setError('Failed to load customers. Please try again.');
+      }
+    };
+    fetchCustomers();
+  }, [company]);
 
   // Fetch invoice data on mount
   useEffect(() => {
+    if (!company) return;
     async function fetchInvoice() {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:3000/api/invoices/${id}`);
-        if (!res.ok) throw new Error('Invoice not found');
-        const data = await res.json();
-        console.log('Fetched invoice data:', data); // Debug log
+        const response = await axios.get(`http://localhost:3000/api/invoices/${id}?company_id=${company.company_id}`);
+        const data = response.data;
         setInvoiceNumber(data.invoice_number);
         setSelectedCustomer(data.cust_id);
         setStatus(data.status);
@@ -70,34 +80,34 @@ const EditInvoice = () => {
         data.services.forEach(s => {
           details[s.service_id] = { qty: s.qty, customer_po: s.customer_po };
         });
-        console.log('Setting service details:', details); // Debug log
         setServiceDetails(details);
         setInvoiceLoaded(true);
       } catch (err) {
-        setError('Failed to load invoice.');
+        setError('Failed to load invoice. Please try again.');
       } finally {
         setLoading(false);
       }
     }
     fetchInvoice();
-  }, [id]);
+  }, [id, company]);
 
   // Fetch services for selected customer
   useEffect(() => {
-    if (selectedCustomer) {
+    if (!company || !selectedCustomer) return;
+    const fetchServices = async () => {
       setServicesLoaded(false);
-      fetch('http://localhost:3000/api/services')
-        .then(res => res.json())
-        .then(data => {
-          console.log('Fetched services for customer:', data); // Debug log
-          setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer)));
-          setServicesLoaded(true);
-        });
-    } else {
-      setServices([]);
-      setServicesLoaded(true);
-    }
-  }, [selectedCustomer]);
+      try {
+        const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+        const data = response.data;
+        setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer)));
+        setServicesLoaded(true);
+      } catch (error) {
+        setError('Failed to load services. Please try again.');
+        setServicesLoaded(true);
+      }
+    };
+    fetchServices();
+  }, [selectedCustomer, company]);
 
   // When services change, remove details for unselected services (but do not clear on customer change)
   useEffect(() => {
@@ -167,6 +177,7 @@ const EditInvoice = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!company) return;
     if (!invoiceNumber || !selectedCustomer || selectedServiceIds.length === 0) {
       setError('Please fill all required fields and select at least one service.');
       return;
@@ -180,35 +191,42 @@ const EditInvoice = () => {
       }
     }
     try {
-      const response = await fetch(`http://localhost:3000/api/invoices/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoice_number: invoiceNumber,
-          cust_id: selectedCustomer,
-          status,
-          services: selectedServiceIds.map(service_id => ({
-            service_id,
-            qty: serviceDetails[service_id].qty,
-            customer_po: serviceDetails[service_id].customer_po
-          }))
-        })
+      const response = await axios.put(`http://localhost:3000/api/invoices/${id}?company_id=${company.company_id}`, {
+        invoice_number: invoiceNumber,
+        cust_id: selectedCustomer,
+        status,
+        company_id: company.company_id,
+        services: selectedServiceIds.map(service_id => ({
+          service_id,
+          qty: serviceDetails[service_id].qty,
+          customer_po: serviceDetails[service_id].customer_po,
+          company_id: company.company_id
+        }))
       });
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || responseData.message || 'Failed to update invoice');
-      }
       setSuccess(true);
       setTimeout(() => {
         navigate('/invoices');
       }, 2000);
     } catch (err) {
-      setError(err.message || 'Failed to update invoice. Please try again.');
+      console.error('Error updating invoice:', err);
+      setError(err.response?.data?.message || 'Failed to update invoice. Please try again.');
     }
   };
 
+  if (!company) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Please select a company to edit invoices.</Typography>
+      </Box>
+    );
+  }
+
   if (loading || !servicesLoaded || !invoiceLoaded) {
-    return <Typography>Loading...</Typography>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (

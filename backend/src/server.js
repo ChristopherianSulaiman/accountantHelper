@@ -114,8 +114,12 @@ app.post('/api/services', async (req, res) => {
 app.put('/api/services/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id } = req.body;
+    const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id, company_id } = req.body;
     
+    if (!company_id) {
+      return res.status(400).json({ message: 'company_id is required' });
+    }
+
     // Start a transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -123,8 +127,8 @@ app.put('/api/services/:id', async (req, res) => {
     try {
       // Get the current service details to check for changes
       const [currentService] = await connection.execute(
-        'SELECT cust_id, service_name FROM services WHERE service_id = ?',
-        [id]
+        'SELECT cust_id, service_name FROM services WHERE service_id = ? AND company_id = ?',
+        [id, company_id]
       );
 
       if (currentService.length === 0) {
@@ -141,8 +145,8 @@ app.put('/api/services/:id', async (req, res) => {
         const [oldCustomerInvoices] = await connection.execute(
           'SELECT DISTINCT i.invoice_id FROM invoices i ' +
           'INNER JOIN invoice_services isv ON i.invoice_id = isv.invoice_id ' +
-          'WHERE i.cust_id = ? AND isv.service_id = ?',
-          [oldCustomerId, id]
+          'WHERE i.cust_id = ? AND isv.service_id = ? AND i.company_id = ?',
+          [oldCustomerId, id, company_id]
         );
 
         // For each invoice, check if it will become empty after removing this service
@@ -171,8 +175,8 @@ app.put('/api/services/:id', async (req, res) => {
 
       // Update the service
       const [result] = await connection.execute(
-        'UPDATE services SET service_type = ?, service_name = ?, nrc = ?, mrc = ?, start_date = ?, end_date = ?, cust_id = ? WHERE service_id = ?',
-        [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, id]
+        'UPDATE services SET service_type = ?, service_name = ?, nrc = ?, mrc = ?, start_date = ?, end_date = ?, cust_id = ? WHERE service_id = ? AND company_id = ?',
+        [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, id, company_id]
       );
 
       if (result.affectedRows === 0) {
@@ -382,8 +386,8 @@ app.put('/api/invoices/:id', async (req, res) => {
       // Insert new invoice_services
       for (const service of services) {
         await connection.execute(
-          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po) VALUES (?, ?, ?, ?)',
-          [id, service.service_id, service.qty, service.customer_po]
+          'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po, company_id) VALUES (?, ?, ?, ?, ?)',
+          [id, service.service_id, service.qty, service.customer_po, service.company_id]
         );
       }
       await connection.commit();
@@ -460,7 +464,7 @@ app.post('/api/invoices', async (req, res) => {
       for (const service of services) {
         await connection.execute(
           'INSERT INTO invoice_services (invoice_id, service_id, qty, customer_po, company_id) VALUES (?, ?, ?, ?, ?)',
-          [invoiceId, service.service_id, service.qty, service.customer_po, company_id]
+          [invoiceId, service.service_id, service.qty, service.customer_po, service.company_id]
         );
       }
 
