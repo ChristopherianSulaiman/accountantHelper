@@ -35,6 +35,8 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { format, parse } from 'date-fns';
 import axios from 'axios';
+import InputAdornment from '@mui/material/InputAdornment';
+import { Search as SearchIcon } from '@mui/icons-material';
 
 const ServiceRow = ({ service, onDelete }) => {
   const [open, setOpen] = useState(false);
@@ -132,6 +134,10 @@ const Services = () => {
     end_date: '',
     cust_id: ''
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [serviceTypeFilter, setServiceTypeFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('earliest');
 
   const serviceTypes = [
     'internet',
@@ -210,6 +216,23 @@ const Services = () => {
     }
   };
 
+  const filteredServices = services.filter(service => {
+    const nameMatch = service.service_name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+    const customerMatch = customerFilter ? String(service.cust_id) === String(customerFilter) : true;
+    const typeMatch = serviceTypeFilter ? service.service_type === serviceTypeFilter : true;
+    return nameMatch && customerMatch && typeMatch;
+  });
+
+  const sortedServices = [...filteredServices].sort((a, b) => {
+    const dateA = new Date(a.end_date);
+    const dateB = new Date(b.end_date);
+    if (sortOrder === 'earliest') {
+      return dateA - dateB;
+    } else {
+      return dateB - dateA;
+    }
+  });
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -241,6 +264,60 @@ const Services = () => {
         >
           {showForm ? 'Cancel' : 'New Service'}
         </Button>
+      </Box>
+
+      <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <TextField
+          placeholder="Search by service name..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          size="small"
+          sx={{ minWidth: 200 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <FormControl sx={{ minWidth: 200 }} size="small">
+          <InputLabel>Customer</InputLabel>
+          <Select
+            value={customerFilter}
+            label="Customer"
+            onChange={e => setCustomerFilter(e.target.value)}
+          >
+            <MenuItem value="">All Customers</MenuItem>
+            {customers.map(c => (
+              <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ minWidth: 160 }} size="small">
+          <InputLabel>Service Type</InputLabel>
+          <Select
+            value={serviceTypeFilter}
+            label="Service Type"
+            onChange={e => setServiceTypeFilter(e.target.value)}
+          >
+            <MenuItem value="">All Types</MenuItem>
+            {serviceTypes.map(type => (
+              <MenuItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ minWidth: 180 }} size="small">
+          <InputLabel>Sort by End Date</InputLabel>
+          <Select
+            value={sortOrder}
+            label="Sort by End Date"
+            onChange={e => setSortOrder(e.target.value)}
+          >
+            <MenuItem value="earliest">Earliest to Latest</MenuItem>
+            <MenuItem value="latest">Latest to Earliest</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
       {error && (
@@ -397,14 +474,14 @@ const Services = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {services.length === 0 ? (
+                {sortedServices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
                       No services available
                     </TableCell>
                   </TableRow>
                 ) : (
-                  services.map((service) => (
+                  sortedServices.map((service) => (
                     <ServiceRow 
                       key={service.service_id} 
                       service={service}

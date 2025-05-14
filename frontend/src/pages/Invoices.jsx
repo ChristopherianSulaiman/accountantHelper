@@ -29,7 +29,6 @@ import {
   DialogActions,
   Snackbar,
   Chip,
-  Collapse,
   InputAdornment
 } from '@mui/material';
 import {
@@ -39,8 +38,6 @@ import {
   Visibility as ViewIcon,
   AddCircle as AddCircleIcon,
   RemoveCircle as RemoveCircleIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon,
-  KeyboardArrowDown as KeyboardArrowDownIcon,
   Close as CloseIcon,
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon
@@ -48,96 +45,13 @@ import {
 import { format, parse } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
-const InvoiceRow = ({ invoice, onEdit, onDelete }) => {
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const formatDate = (dateString) => {
-    try {
-      const dateOnly = dateString.split('T')[0];
-      return format(parse(dateOnly, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy');
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateString;
-    }
-  };
-
-  const handleEdit = () => {
-    console.log('Invoice data in row:', invoice); // Debug log
-    onEdit(invoice);
-  };
-
-  return (
-    <React.Fragment>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-        <TableCell>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell>{invoice.invoice_number}</TableCell>
-        <TableCell>{invoice.cust_name}</TableCell>
-        <TableCell>
-          <Chip
-            label={invoice.status}
-            color={
-              invoice.status === 'paid'
-                ? 'success'
-                : invoice.status === 'pending'
-                ? 'warning'
-                : invoice.status === 'overdue'
-                ? 'error'
-                : 'default'
-            }
-          />
-        </TableCell>
-        <TableCell align="center">
-          <IconButton size="small" color="primary" onClick={() => navigate(`/invoices/edit/${invoice.invoice_id}`)}>
-            <EditIcon />
-          </IconButton>
-          <IconButton size="small" color="error" onClick={onDelete}>
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              <Typography variant="h6" gutterBottom component="div">
-                Services
-              </Typography>
-              <Table size="small" aria-label="services">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Service Name</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Quantity</TableCell>
-                    <TableCell>Customer PO</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {invoice.services.map((service) => (
-                    <TableRow key={service.service_id}>
-                      <TableCell>{service.service_name}</TableCell>
-                      <TableCell>{service.service_type}</TableCell>
-                      <TableCell>{service.qty}</TableCell>
-                      <TableCell>{service.customer_po}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </React.Fragment>
-  );
-};
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
@@ -150,6 +64,8 @@ const Invoices = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -217,10 +133,21 @@ const Invoices = () => {
     }
   };
 
-  // Filter invoices based on search query
-  const filteredInvoices = invoices.filter(invoice => 
-    invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and prioritize invoices
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredInvoices = invoices.filter(inv => {
+    const customerMatch = customerFilter ? String(inv.cust_id) === String(customerFilter) : true;
+    const statusMatch = statusFilter ? inv.status === statusFilter : true;
+    const searchMatch = normalizedQuery ? inv.invoice_number.toLowerCase().includes(normalizedQuery) : true;
+    return customerMatch && statusMatch && searchMatch;
+  });
+  const prioritizedInvoices = filteredInvoices.sort((a, b) => {
+    const aStarts = a.invoice_number.toLowerCase().startsWith(normalizedQuery);
+    const bStarts = b.invoice_number.toLowerCase().startsWith(normalizedQuery);
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    return a.invoice_number.localeCompare(b.invoice_number);
+  });
 
   if (loading) {
     return (
@@ -280,53 +207,126 @@ const Invoices = () => {
 
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <TextField
-            fullWidth
-            placeholder="Search by invoice number..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 2 }}
-          />
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell />
-                  <TableCell>Invoice Number</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredInvoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.invoice_id}
-                    invoice={invoice}
-                    onEdit={() => navigate(`/invoices/edit/${invoice.invoice_id}`)}
-                    onDelete={() => {
+          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              placeholder="Search by invoice number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="small"
+              sx={{ minWidth: 200 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <FormControl sx={{ minWidth: 200 }} size="small">
+              <InputLabel>Customer</InputLabel>
+              <Select
+                value={customerFilter}
+                label="Customer"
+                onChange={e => setCustomerFilter(e.target.value)}
+              >
+                <MenuItem value="">All Customers</MenuItem>
+                {customers.map(c => (
+                  <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 160 }} size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Status"
+                onChange={e => setStatusFilter(e.target.value)}
+              >
+                {statusOptions.map(opt => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          {prioritizedInvoices.length === 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography align="center">
+                  {searchQuery ? 'No invoices found matching your search' : 'No invoices found'}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+          {prioritizedInvoices.map((invoice) => (
+            <Card key={invoice.invoice_id} sx={{ mb: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'primary.main' }}>Invoice Details</Typography>
+                <Grid container spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="text.secondary">Invoice Number</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>{invoice.invoice_number}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="text.secondary">Customer</Typography>
+                    <Typography variant="subtitle1">{invoice.cust_name}</Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Status</Typography>
+                      <Chip
+                        label={invoice.status}
+                        color={
+                          invoice.status === 'paid'
+                            ? 'success'
+                            : invoice.status === 'pending'
+                            ? 'warning'
+                            : invoice.status === 'overdue'
+                            ? 'error'
+                            : 'default'
+                        }
+                        sx={{ fontWeight: 600, fontSize: '1rem', height: 28, mt: 0.5 }}
+                      />
+                    </Box>
+                    <IconButton size="small" color="primary" onClick={() => navigate(`/invoices/edit/${invoice.invoice_id}`)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => {
                       setInvoiceToDelete(invoice);
                       setDeleteDialogOpen(true);
-                    }}
-                  />
-                ))}
-                {filteredInvoices.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      {searchQuery ? 'No invoices found matching your search' : 'No invoices found'}
-                    </TableCell>
-                  </TableRow>
+                    }}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </Grid>
+                </Grid>
+                {/* Services Table */}
+                {invoice.services && invoice.services.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>Services</Typography>
+                    <Table size="small" sx={{ background: '#fafbfc', borderRadius: 1 }}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Service Name</TableCell>
+                          <TableCell>Type</TableCell>
+                          <TableCell>Quantity</TableCell>
+                          <TableCell>Customer PO</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {invoice.services.map((service) => (
+                          <TableRow key={service.service_id}>
+                            <TableCell>{service.service_name}</TableCell>
+                            <TableCell>{service.service_type}</TableCell>
+                            <TableCell>{service.qty}</TableCell>
+                            <TableCell>{service.customer_po}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
                 )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              </CardContent>
+            </Card>
+          ))}
         </CardContent>
       </Card>
 
