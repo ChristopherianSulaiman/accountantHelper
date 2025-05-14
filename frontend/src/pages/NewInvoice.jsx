@@ -36,8 +36,6 @@ const statusOptions = [
 
 const steps = ['Basic Information', 'Select Services', 'Review & Submit'];
 
-const invoiceNumberPattern = /^INV-\d{1,5}$/;
-
 const NewInvoice = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
@@ -97,8 +95,8 @@ const NewInvoice = () => {
   };
 
   const validateInvoiceNumber = (value) => {
-    if (!invoiceNumberPattern.test(value)) {
-      setInvoiceNumberError('Invoice number must start with INV- and be followed by 1 to 5 digits (e.g., INV-12345).');
+    if (!value || value.length > 15) {
+      setInvoiceNumberError('Invoice number must be between 1 and 15 characters.');
       return false;
     } else {
       setInvoiceNumberError('');
@@ -194,12 +192,12 @@ const NewInvoice = () => {
                 value={invoiceNumber}
                 onChange={handleInvoiceNumberChange}
                 required
-                placeholder="e.g., INV-12345"
-                helperText={invoiceNumberError || "Up to 8 characters, must start with INV- and be followed by 1 to 5 digits"}
+                placeholder="Enter invoice number"
+                helperText={invoiceNumberError || "Up to 15 characters"}
                 error={!!invoiceNumberError}
                 InputProps={{
                   endAdornment: (
-                    <Tooltip title="Invoice number must start with INV- and be followed by 1 to 5 digits (e.g., INV-12345)">
+                    <Tooltip title="Invoice number can be any text up to 15 characters">
                       <InfoIcon color="action" />
                     </Tooltip>
                   ),

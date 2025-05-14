@@ -117,19 +117,87 @@ app.put('/api/services/:id', async (req, res) => {
     const { id } = req.params;
     const { service_type, service_name, nrc, mrc, start_date, end_date, cust_id } = req.body;
     
-    const [result] = await pool.execute(
-      'UPDATE services SET service_type = ?, service_name = ?, nrc = ?, mrc = ?, start_date = ?, end_date = ?, cust_id = ? WHERE service_id = ?',
-      [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, id]
-    );
+    // Start a transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Service not found' });
+    try {
+      // Get the current service details to check for changes
+      const [currentService] = await connection.execute(
+        'SELECT cust_id, service_name FROM services WHERE service_id = ?',
+        [id]
+      );
+
+      if (currentService.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Service not found' });
+      }
+
+      const oldCustomerId = currentService[0].cust_id;
+      const oldServiceName = currentService[0].service_name;
+
+      // If customer has changed, remove service from old customer's invoices
+      if (oldCustomerId !== cust_id) {
+        // Get all invoices for the old customer that have this service
+        const [oldCustomerInvoices] = await connection.execute(
+          'SELECT DISTINCT i.invoice_id FROM invoices i ' +
+          'INNER JOIN invoice_services isv ON i.invoice_id = isv.invoice_id ' +
+          'WHERE i.cust_id = ? AND isv.service_id = ?',
+          [oldCustomerId, id]
+        );
+
+        // For each invoice, check if it will become empty after removing this service
+        for (const invoice of oldCustomerInvoices) {
+          // Count remaining services in this invoice
+          const [remainingServices] = await connection.execute(
+            'SELECT COUNT(*) as count FROM invoice_services WHERE invoice_id = ? AND service_id != ?',
+            [invoice.invoice_id, id]
+          );
+
+          if (remainingServices[0].count === 0) {
+            // If this is the only service, delete the entire invoice
+            await connection.execute(
+              'DELETE FROM invoices WHERE invoice_id = ?',
+              [invoice.invoice_id]
+            );
+          } else {
+            // Otherwise just remove this service from the invoice
+            await connection.execute(
+              'DELETE FROM invoice_services WHERE invoice_id = ? AND service_id = ?',
+              [invoice.invoice_id, id]
+            );
+          }
+        }
+      }
+
+      // Update the service
+      const [result] = await connection.execute(
+        'UPDATE services SET service_type = ?, service_name = ?, nrc = ?, mrc = ?, start_date = ?, end_date = ?, cust_id = ? WHERE service_id = ?',
+        [service_type, service_name, nrc, mrc, start_date, end_date, cust_id, id]
+      );
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Service not found' });
+      }
+
+      // If service name has changed, update it in all related invoices
+      if (oldServiceName !== service_name) {
+        // The service name will automatically reflect in invoices since we're using JOINs
+        // No need for additional updates as the service name is referenced from the services table
+      }
+
+      await connection.commit();
+      res.json({
+        message: 'Service updated successfully. Related invoices have been updated accordingly.',
+        serviceId: id
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    res.json({
-      message: 'Service updated successfully',
-      serviceId: id
-    });
   } catch (error) {
     console.error('Error updating service:', error);
     res.status(500).json({ message: 'Error updating service' });
@@ -141,25 +209,61 @@ app.delete('/api/services/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // First delete related invoices
-    await pool.execute(
-      'DELETE FROM invoices WHERE service_id = ?',
-      [id]
-    );
+    // Start a transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-    // Then delete the service
-    const [result] = await pool.execute(
-      'DELETE FROM services WHERE service_id = ?',
-      [id]
-    );
+    try {
+      // Get all invoices that have this service
+      const [invoicesWithService] = await connection.execute(
+        'SELECT DISTINCT invoice_id FROM invoice_services WHERE service_id = ?',
+        [id]
+      );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Service not found' });
+      // For each invoice, check if it will become empty after removing this service
+      for (const invoice of invoicesWithService) {
+        // Count remaining services in this invoice
+        const [remainingServices] = await connection.execute(
+          'SELECT COUNT(*) as count FROM invoice_services WHERE invoice_id = ? AND service_id != ?',
+          [invoice.invoice_id, id]
+        );
+
+        if (remainingServices[0].count === 0) {
+          // If this is the only service, delete the entire invoice
+          await connection.execute(
+            'DELETE FROM invoices WHERE invoice_id = ?',
+            [invoice.invoice_id]
+          );
+        }
+      }
+
+      // Remove the service from all invoice_services
+      await connection.execute(
+        'DELETE FROM invoice_services WHERE service_id = ?',
+        [id]
+      );
+
+      // Finally delete the service
+      const [result] = await connection.execute(
+        'DELETE FROM services WHERE service_id = ?',
+        [id]
+      );
+
+      if (result.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Service not found' });
+      }
+
+      await connection.commit();
+      res.json({
+        message: 'Service deleted successfully. Related invoices have been updated accordingly.'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    res.json({
-      message: 'Service and related invoices deleted successfully'
-    });
   } catch (error) {
     console.error('Error deleting service:', error);
     res.status(500).json({ message: 'Error deleting service' });
