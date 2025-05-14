@@ -20,7 +20,8 @@ import {
   MenuItem,
   Select,
   FormControl,
-  InputLabel
+  InputLabel,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,6 +38,7 @@ import axios from 'axios';
 
 const ServiceRow = ({ service, onDelete }) => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
     try {
@@ -58,11 +60,18 @@ const ServiceRow = ({ service, onDelete }) => {
         <TableCell align="right">Rp{parseFloat(service.mrc).toFixed(2)}</TableCell>
         <TableCell>{formatDate(service.start_date)}</TableCell>
         <TableCell>{formatDate(service.end_date)}</TableCell>
-        <TableCell align="center">
-          <IconButton 
-            size="small" 
-            color="error" 
+        <TableCell>
+          <IconButton
+            color="primary"
+            onClick={() => navigate(`/services/edit/${service.service_id}`)}
+            size="small"
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            color="error"
             onClick={() => onDelete(service.service_id)}
+            size="small"
           >
             <DeleteIcon />
           </IconButton>
