@@ -42,6 +42,7 @@ import ListItemText from '@mui/material/ListItemText';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTheme } from '@mui/material/styles';
+import { useCompany } from '../components/CompanyContext';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -52,6 +53,7 @@ const statusOptions = [
 ];
 
 const Print = () => {
+  const { company } = useCompany();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,9 +76,11 @@ const Print = () => {
   const theme = useTheme();
 
   useEffect(() => {
+    if (!company) return;
     fetchInvoices();
     fetchCustomers();
-  }, []);
+    fetchBanks();
+  }, [company]);
 
   // Auto-dismiss error after 3 seconds
   useEffect(() => {
@@ -87,11 +91,12 @@ const Print = () => {
   }, [error]);
 
   const fetchInvoices = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/invoices');
-      setInvoices(response.data);
+      const response = await axios.get(`http://localhost:3000/api/invoices?company_id=${company.company_id}`);
+      setInvoices(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
+      setInvoices([]);
       setError('Failed to load invoices. Please try again later.');
     } finally {
       setLoading(false);
@@ -99,20 +104,24 @@ const Print = () => {
   };
 
   const fetchCustomers = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/customers');
-      setCustomers(response.data);
+      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+      setCustomers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      setCustomers([]);
+      setError('Failed to load customers. Please try again.');
     }
   };
 
   const fetchBanks = async () => {
+    if (!company) return;
     try {
-      const response = await axios.get('http://localhost:3000/api/banks');
-      setBanks(response.data);
+      const response = await axios.get(`http://localhost:3000/api/banks?company_id=${company.company_id}`);
+      setBanks(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching banks:', error);
+      setBanks([]);
+      setError('Failed to load banks. Please try again.');
     }
   };
 
@@ -120,38 +129,65 @@ const Print = () => {
     try {
       let customerData = null;
       let serviceData = null;
-      // Try to fetch by ID first
+
+      // Try to fetch customer by ID first
       if (invoice.cust_id) {
         try {
-          const customerRes = await axios.get(`http://localhost:3000/api/customers/${invoice.cust_id}`);
-          customerData = customerRes.data;
+          const customerRes = await axios.get(`http://localhost:3000/api/customers/${invoice.cust_id}?company_id=${company.company_id}`);
+          if (customerRes.data) {
+            customerData = customerRes.data;
+          }
         } catch (err) {
           console.warn('Customer by ID not found, will try by name.');
         }
       }
+
+      // If customer not found by ID, try to find by name
       if (!customerData && invoice.cust_name) {
-        // Fallback: fetch all and find by name
-        const allCustomers = await axios.get('http://localhost:3000/api/customers');
-        customerData = allCustomers.data.find(c => c.cust_name === invoice.cust_name);
+        try {
+          const allCustomersRes = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+          if (Array.isArray(allCustomersRes.data)) {
+            customerData = allCustomersRes.data.find(c => c.cust_name === invoice.cust_name);
+          }
+        } catch (err) {
+          console.error('Error fetching customers:', err);
+        }
       }
+
+      if (!customerData) {
+        setError('Could not find customer information. Please try again.');
+        return;
+      }
+
       setCustomer(customerData);
 
+      // Fetch services if needed
       if (invoice.service_id) {
         try {
-          const serviceRes = await axios.get(`http://localhost:3000/api/services/${invoice.service_id}`);
-          serviceData = serviceRes.data;
+          const serviceRes = await axios.get(`http://localhost:3000/api/services/${invoice.service_id}?company_id=${company.company_id}`);
+          if (serviceRes.data) {
+            serviceData = serviceRes.data;
+          }
         } catch (err) {
           console.warn('Service by ID not found, will try by name.');
         }
       }
+
       if (!serviceData && invoice.service_name) {
-        // Fallback: fetch all and find by name
-        const allServices = await axios.get('http://localhost:3000/api/services');
-        serviceData = allServices.data.find(s => s.service_name === invoice.service_name);
+        try {
+          const allServicesRes = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+          if (Array.isArray(allServicesRes.data)) {
+            serviceData = allServicesRes.data.find(s => s.service_name === invoice.service_name);
+          }
+        } catch (err) {
+          console.error('Error fetching services:', err);
+        }
       }
+
       setService(serviceData);
     } catch (err) {
-      console.error('Error fetching customer/service:', err);
+      console.error('Error in fetchCustomerAndService:', err);
+      setError('Failed to load customer and service information. Please try again.');
       setCustomer(null);
       setService(null);
     }
@@ -227,167 +263,193 @@ const Print = () => {
   };
 
   const handlePrintPDF = () => {
-    if (!selectedInvoice || !selectedInvoice.services || !customer) return;
-    if (!dueDate || !dateBilled) {
-      setError('Please enter both Due Date and Date Billed.');
-      return;
-    }
-    if (!selectedBanks || selectedBanks.length === 0) {
-      setError('Please select at least one bank before downloading.');
-      return;
-    }
-    const doc = new jsPDF('p', 'mm', 'a4');
+    try {
+      if (!selectedInvoice) {
+        setError('No invoice selected');
+        return;
+      }
+      if (!selectedInvoice.services || !Array.isArray(selectedInvoice.services) || selectedInvoice.services.length === 0) {
+        setError('No services found in the invoice');
+        return;
+      }
+      if (!customer) {
+        setError('Customer information not found');
+        return;
+      }
+      if (!dueDate || !dateBilled) {
+        setError('Please enter both Due Date and Date Billed.');
+        return;
+      }
+      if (!selectedBanks || selectedBanks.length === 0) {
+        setError('Please select at least one bank before downloading.');
+        return;
+      }
 
-    // --- HEADER ---
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('Billed To :', 14, 18);
-    doc.setFontSize(13);
-    doc.text((customer.cust_name || '').toUpperCase(), 14, 25);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    let y = 31;
-    if (customer.cust_address) {
-      const addressLines = doc.splitTextToSize(customer.cust_address, 80);
-      doc.text(addressLines, 14, y);
-      y += addressLines.length * 6;
-    }
-    doc.text('Phone :  -', 14, y + 2);
+      const doc = new jsPDF('p', 'mm', 'a4');
 
-    // Invoice info box
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(32);
-    doc.text('Invoice', 150, 22);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 150, 32);
-    doc.text(`Date      : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
-    doc.text(`Due Date  : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
+      // --- HEADER ---
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Billed To :', 14, 18);
+      doc.setFontSize(13);
+      doc.text((customer.cust_name || '').toUpperCase(), 14, 25);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      let y = 31;
+      if (customer.cust_address) {
+        const addressLines = doc.splitTextToSize(customer.cust_address, 80);
+        doc.text(addressLines, 14, y);
+        y += addressLines.length * 6;
+      }
+      doc.text('Phone :  -', 14, y + 2);
 
-    // --- TABLE ---
-    y += 12;
-    let tableY = Math.max(y, 55);
-    // Group services by PO
-    const poGroups = {};
-    selectedInvoice.services.forEach(service => {
-      if (!service) return;
-      const po = service.customer_po || 'NO PO';
-      if (!poGroups[po]) poGroups[po] = [];
-      poGroups[po].push(service);
-    });
-    // Build table rows
-    let tableRows = [];
-    let subTotal = 0;
-    Object.entries(poGroups).forEach(([po, services]) => {
-      // PO row (bold)
-      tableRows.push([
-        { content: `PO # ${po}`, styles: { fontStyle: 'bold', colSpan: 5, halign: 'left' } }, '', '', '', ''
-      ]);
-      services.forEach(service => {
-        const dates = serviceDates[service.service_id] || {};
-        const period = dates.start_date && dates.end_date ? `${dates.start_date.split('-').reverse().join('/')} - ${dates.end_date.split('-').reverse().join('/')}` : '';
-        // Service row: name, period, unit price, qty, amount
-        const mrcAmount = service.mrc ? parseFloat(service.mrc) * service.qty : 0;
-        subTotal += mrcAmount;
-        tableRows.push([
-          { content: service.service_name, styles: { halign: 'left' } },
-          period,
-          `Rp ${service.mrc ? parseFloat(service.mrc).toLocaleString() : ''}`,
-          service.qty || '',
-          `Rp ${mrcAmount ? mrcAmount.toLocaleString() : ''}`
-        ]);
-        // NRC row (if included)
-        if (nrcIncluded[service.service_id] && service.nrc) {
-          const qty = Number(nrcQty[service.service_id]) || 1;
-          const nrcAmount = parseFloat(service.nrc) * qty;
-          subTotal += nrcAmount;
-          tableRows.push([
-            'Activation Fee', 'One Time', `Rp ${parseFloat(service.nrc).toLocaleString()}`, String(qty), `Rp ${nrcAmount.toLocaleString()}`
-          ]);
-        }
+      // Invoice info box
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(32);
+      doc.text('Invoice', 150, 22);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Invoice No. : ${selectedInvoice.invoice_number}`, 150, 32);
+      doc.text(`Date      : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
+      doc.text(`Due Date  : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
+
+      // --- TABLE ---
+      y += 12;
+      let tableY = Math.max(y, 55);
+      // Group services by PO
+      const poGroups = {};
+      selectedInvoice.services.forEach(service => {
+        if (!service) return;
+        const po = service.customer_po || 'NO PO';
+        if (!poGroups[po]) poGroups[po] = [];
+        poGroups[po].push(service);
       });
-    });
 
-    // --- TABLE HEADER ---
-    const tableHead = [[
-      { content: 'Description', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-      { content: 'Period', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-      { content: 'Unit Price', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-      { content: 'Qty', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-      { content: 'Amount', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-    ]];
+      // Build table rows
+      let tableRows = [];
+      let subTotal = 0;
+      Object.entries(poGroups).forEach(([po, services]) => {
+        // PO row (bold)
+        tableRows.push([
+          { content: `PO # ${po}`, styles: { fontStyle: 'bold', colSpan: 5, halign: 'left' } }, '', '', '', ''
+        ]);
+        services.forEach(service => {
+          if (!service) return;
+          const dates = serviceDates[service.service_id] || {};
+          const period = dates.start_date && dates.end_date ? `${dates.start_date.split('-').reverse().join('/')} - ${dates.end_date.split('-').reverse().join('/')}` : '';
+          // Service row: name, period, unit price, qty, amount
+          const mrcAmount = service.mrc ? parseFloat(service.mrc) * (service.qty || 0) : 0;
+          subTotal += mrcAmount;
+          tableRows.push([
+            { content: service.service_name || '', styles: { halign: 'left' } },
+            period,
+            `Rp ${service.mrc ? parseFloat(service.mrc).toLocaleString() : ''}`,
+            service.qty || '',
+            `Rp ${mrcAmount ? mrcAmount.toLocaleString() : ''}`
+          ]);
+          // NRC row (if included)
+          if (nrcIncluded[service.service_id] && service.nrc) {
+            const qty = Number(nrcQty[service.service_id]) || 1;
+            const nrcAmount = parseFloat(service.nrc) * qty;
+            subTotal += nrcAmount;
+            tableRows.push([
+              'Activation Fee', 'One Time', `Rp ${parseFloat(service.nrc).toLocaleString()}`, String(qty), `Rp ${nrcAmount.toLocaleString()}`
+            ]);
+          }
+        });
+      });
 
-    autoTable(doc, {
-      startY: tableY,
-      head: tableHead,
-      body: tableRows,
-      theme: 'grid',
-      headStyles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' },
-      bodyStyles: { fontSize: 11, halign: 'left', valign: 'middle' },
-      columnStyles: {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 15, halign: 'right' },
-        4: { cellWidth: 35, halign: 'right' },
-      },
-      styles: { cellPadding: 2, font: 'helvetica' },
-      didDrawPage: (data) => {
-        // nothing
-      },
-    });
+      // --- TABLE HEADER ---
+      const tableHead = [[
+        { content: 'Description', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Period', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Unit Price', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Qty', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Amount', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+      ]];
 
-    // --- SUBTOTAL, VAT, TOTAL ---
-    let yAfterTable = doc.lastAutoTable.finalY + 10;
-    const vat = Math.round(subTotal * 0.11);
-    const total = subTotal + vat;
-    const labelX = 150;
-    const valueX = 200; // Move this further right to avoid overlap
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.text('Sub Total', labelX, yAfterTable);
-    doc.text('VAT/PPN', labelX, yAfterTable + 7);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL', labelX, yAfterTable + 14);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Rp ${subTotal.toLocaleString()}`, valueX, yAfterTable, { align: 'right' });
-    doc.text(`Rp ${vat.toLocaleString()}`, valueX, yAfterTable + 7, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Rp ${total.toLocaleString()}`, valueX, yAfterTable + 14, { align: 'right' });
+      autoTable(doc, {
+        startY: tableY,
+        head: tableHead,
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' },
+        bodyStyles: { fontSize: 11, halign: 'left', valign: 'middle' },
+        columnStyles: {
+          0: { cellWidth: 70 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 15, halign: 'right' },
+          4: { cellWidth: 35, halign: 'right' },
+        },
+        styles: { cellPadding: 2, font: 'helvetica' },
+        didDrawPage: (data) => {
+          // nothing
+        },
+      });
 
-    // --- FOOTER ---
-    let yFooter = yAfterTable + 30;
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(11);
-    doc.text('All payment should be made in full Amount', 14, yFooter);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text('Make all checks payable to :', 14, yFooter + 7);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PT. Digital Wireless Indonesia', 14, yFooter + 14);
-    doc.setFont('helvetica', 'normal');
-    let yBank = yFooter + 21;
-    banks.filter(b => selectedBanks.includes(b.bank_id)).forEach((bank) => {
-      doc.text(`Bank ${bank.bank_name} - ${bank.bank_address}`, 14, yBank);
-      yBank += 6;
-      doc.text(`A/C # ${bank.acc_number} (${bank.currency})`, 14, yBank);
-      yBank += 7;
-    });
+      // --- SUBTOTAL, VAT, TOTAL ---
+      let yAfterTable = doc.lastAutoTable.finalY + 10;
+      const vat = Math.round(subTotal * 0.11);
+      const total = subTotal + vat;
+      const labelX = 150;
+      const valueX = 200; // Move this further right to avoid overlap
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(12);
+      doc.text('Sub Total', labelX, yAfterTable);
+      doc.text('VAT/PPN', labelX, yAfterTable + 7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL', labelX, yAfterTable + 14);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Rp ${subTotal.toLocaleString()}`, valueX, yAfterTable, { align: 'right' });
+      doc.text(`Rp ${vat.toLocaleString()}`, valueX, yAfterTable + 7, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Rp ${total.toLocaleString()}`, valueX, yAfterTable + 14, { align: 'right' });
 
-    doc.save('invoice.pdf');
+      // --- FOOTER ---
+      let yFooter = yAfterTable + 30;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(11);
+      doc.text('All payment should be made in full Amount', 14, yFooter);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text('Make all checks payable to :', 14, yFooter + 7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PT. Digital Wireless Indonesia', 14, yFooter + 14);
+      doc.setFont('helvetica', 'normal');
+      let yBank = yFooter + 21;
+      if (Array.isArray(banks) && selectedBanks.every(id => banks.some(b => b.bank_id === id))) {
+        selectedBanks.forEach((bankId) => {
+          const bank = banks.find(b => b.bank_id === bankId);
+          if (bank) {
+            doc.text(`Bank ${bank.bank_name} - ${bank.bank_address}`, 14, yBank);
+            yBank += 6;
+            doc.text(`A/C # ${bank.acc_number} (${bank.currency})`, 14, yBank);
+            yBank += 7;
+          }
+        });
+      }
+
+      doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setError('Failed to generate PDF. Please try again.');
+    }
   };
 
-  // Filtered invoices
-  const filteredInvoices = invoices.filter(inv => {
-    const customerMatch = customerFilter
-      ? String(inv.cust_id) === String(customerFilter)
-      : true;
+  // Add debug logging before filtering
+  console.log({ invoices, customerFilter, statusFilter, searchQuery });
+
+  const filteredInvoices = Array.isArray(invoices) ? invoices.filter(inv => {
+    // If no filters, show all
+    if (!customerFilter && !statusFilter && !searchQuery) return true;
+    const customerMatch = customerFilter ? String(inv.cust_id) === String(customerFilter) : true;
     const statusMatch = statusFilter ? inv.status === statusFilter : true;
     const searchMatch = searchQuery
       ? inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
     return customerMatch && statusMatch && searchMatch;
-  });
+  }) : [];
 
   if (loading) {
     return (
@@ -501,7 +563,7 @@ const Print = () => {
             onChange={e => setCustomerFilter(e.target.value)}
           >
             <MenuItem value="">All Customers</MenuItem>
-            {customers.map(c => (
+            {Array.isArray(customers) && customers.map(c => (
               <MenuItem key={c.cust_id} value={String(c.cust_id)}>{c.cust_name}</MenuItem>
             ))}
           </Select>
@@ -630,7 +692,7 @@ const Print = () => {
                       .join(', ')
                   }
                 >
-                  {banks.map((bank) => (
+                  {Array.isArray(banks) && banks.map((bank) => (
                     <MenuItem key={bank.bank_id} value={bank.bank_id}>
                       <Checkbox checked={selectedBanks.indexOf(bank.bank_id) > -1} />
                       <ListItemText 
