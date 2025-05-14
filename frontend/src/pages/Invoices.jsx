@@ -29,7 +29,8 @@ import {
   DialogActions,
   Snackbar,
   Chip,
-  Collapse
+  Collapse,
+  InputAdornment
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,7 +41,9 @@ import {
   RemoveCircle as RemoveCircleIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  ArrowBack as ArrowBackIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { format, parse } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -146,6 +149,7 @@ const Invoices = () => {
   const [showError, setShowError] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -213,6 +217,11 @@ const Invoices = () => {
     }
   };
 
+  // Filter invoices based on search query
+  const filteredInvoices = invoices.filter(invoice => 
+    invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -269,6 +278,58 @@ const Invoices = () => {
         </Alert>
       </Snackbar>
 
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <TextField
+            fullWidth
+            placeholder="Search by invoice number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 2 }}
+          />
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell />
+                  <TableCell>Invoice Number</TableCell>
+                  <TableCell>Customer</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredInvoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.invoice_id}
+                    invoice={invoice}
+                    onEdit={() => navigate(`/invoices/edit/${invoice.invoice_id}`)}
+                    onDelete={() => {
+                      setInvoiceToDelete(invoice);
+                      setDeleteDialogOpen(true);
+                    }}
+                  />
+                ))}
+                {filteredInvoices.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      {searchQuery ? 'No invoices found matching your search' : 'No invoices found'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
       <Dialog
         open={deleteDialogOpen}
         onClose={handleDeleteCancel}
@@ -286,45 +347,6 @@ const Invoices = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell />
-                  <TableCell>Invoice Number</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {invoices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      No invoices available
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  invoices.map((invoice) => (
-                    <InvoiceRow 
-                      key={invoice.invoice_id || invoice.id} 
-                      invoice={invoice} 
-                      onEdit={() => {}}
-                      onDelete={() => {
-                        setInvoiceToDelete(invoice);
-                        setDeleteDialogOpen(true);
-                      }}
-                    />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
     </Box>
   );
 };

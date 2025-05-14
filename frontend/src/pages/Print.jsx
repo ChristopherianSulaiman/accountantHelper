@@ -23,11 +23,14 @@ import {
   Collapse,
   Grid,
   FormHelperText,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Print as PrintIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 import Dialog from '@mui/material/Dialog';
@@ -39,7 +42,6 @@ import ListItemText from '@mui/material/ListItemText';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useTheme } from '@mui/material/styles';
-import TextField from '@mui/material/TextField';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -68,6 +70,7 @@ const Print = () => {
   const [dueDate, setDueDate] = useState('');
   const [dateBilled, setDateBilled] = useState('');
   const [nrcQty, setNrcQty] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
   const theme = useTheme();
 
   useEffect(() => {
@@ -380,7 +383,10 @@ const Print = () => {
       ? String(inv.cust_id) === String(customerFilter)
       : true;
     const statusMatch = statusFilter ? inv.status === statusFilter : true;
-    return customerMatch && statusMatch;
+    const searchMatch = searchQuery
+      ? inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return customerMatch && statusMatch && searchMatch;
   });
 
   if (loading) {
@@ -473,6 +479,20 @@ const Print = () => {
       </Box>
       {/* Filter controls */}
       <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <TextField
+          placeholder="Search by invoice number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          size="small"
+          sx={{ minWidth: 200 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
         <FormControl sx={{ minWidth: 200 }} size="small">
           <InputLabel>Customer</InputLabel>
           <Select
