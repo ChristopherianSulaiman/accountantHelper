@@ -119,32 +119,36 @@ const SampleBill = () => {
 
   const generatePDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
+    
+    // Add 40mm (4cm) vertical offset to shift everything down
+    const verticalOffset = 40;
+    
     // Header
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('PT. HARMONI NETWORKS INDONESIA', 14, 18);
+    doc.text('PT. HARMONI NETWORKS INDONESIA', 14, 18 + verticalOffset);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('Taman Palem Lestari, Ruko Galaxy L No.39 RT.013 RW.008', 14, 25);
-    doc.text('Cengkareng Jakarta Barat 11730', 14, 31);
-    doc.text('Phone : -', 14, 37);
+    doc.text('Taman Palem Lestari, Ruko Galaxy L No.39 RT.013 RW.008', 14, 25 + verticalOffset);
+    doc.text('Cengkareng Jakarta Barat 11730', 14, 31 + verticalOffset);
+    doc.text('Phone : -', 14, 37 + verticalOffset);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('Invoice', 160, 18);
+    doc.text('Invoice', 160, 18 + verticalOffset);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('Invoice No. : DWI-20250074', 160, 25);
-    doc.text('Date : 4/7/25', 160, 31);
-    doc.text('Due Date : 30 days', 160, 37);
+    doc.text('Invoice No. : DWI-20250074', 160, 25 + verticalOffset);
+    doc.text('Date : 4/7/25', 160, 31 + verticalOffset);
+    doc.text('Due Date : 30 days', 160, 37 + verticalOffset);
     // Billed To
     doc.setFont('helvetica', 'bold');
-    doc.text('Billed To :', 14, 50);
+    doc.text('Billed To :', 14, 50 + verticalOffset);
     doc.setFont('helvetica', 'bold');
-    doc.text('PT. HARMONI NETWORKS INDONESIA', 14, 57);
+    doc.text('PT. HARMONI NETWORKS INDONESIA', 14, 57 + verticalOffset);
     doc.setFont('helvetica', 'normal');
-    doc.text('Taman Palem Lestari, Ruko Galaxy L No.39 RT.013 RW.008', 14, 63);
-    doc.text('Cengkareng Jakarta Barat 11730', 14, 69);
-    doc.text('Phone : -', 14, 75);
+    doc.text('Taman Palem Lestari, Ruko Galaxy L No.39 RT.013 RW.008', 14, 63 + verticalOffset);
+    doc.text('Cengkareng Jakarta Barat 11730', 14, 69 + verticalOffset);
+    doc.text('Phone : -', 14, 75 + verticalOffset);
     // Table
     const tableColumn = [
       'Description',
@@ -176,7 +180,7 @@ const SampleBill = () => {
       ],
     ];
     autoTable(doc, {
-      startY: 85,
+      startY: 85 + verticalOffset,
       head: [tableColumn],
       body: tableRows,
       theme: 'grid',

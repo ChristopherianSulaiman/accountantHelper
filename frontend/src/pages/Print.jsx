@@ -286,16 +286,19 @@ const Print = () => {
       }
 
       const doc = new jsPDF('p', 'mm', 'a4');
+      
+      // Add 40mm (4cm) vertical offset to shift everything down
+      const verticalOffset = 40;
 
       // --- HEADER ---
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.text('Billed To :', 14, 18);
+      doc.text('Billed To :', 14, 18 + verticalOffset);
       doc.setFontSize(13);
-      doc.text((customer.cust_name || '').toUpperCase(), 14, 25);
+      doc.text((customer.cust_name || '').toUpperCase(), 14, 25 + verticalOffset);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      let y = 31;
+      let y = 31 + verticalOffset;
       if (customer.cust_address) {
         const addressLines = doc.splitTextToSize(customer.cust_address, 80);
         doc.text(addressLines, 14, y);
@@ -306,16 +309,16 @@ const Print = () => {
       // Invoice info box
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(32);
-      doc.text('Invoice', 150, 22);
+      doc.text('Invoice', 150, 22 + verticalOffset);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Invoice No.   : ${selectedInvoice.invoice_number}`, 150, 32);
-      doc.text(`Date             : ${dateBilled.split('-').reverse().join('/')}`, 150, 38);
-      doc.text(`Due Date      : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44);
+      doc.text(`Invoice No.   : ${selectedInvoice.invoice_number}`, 150, 32 + verticalOffset);
+      doc.text(`Date             : ${dateBilled.split('-').reverse().join('/')}`, 150, 38 + verticalOffset);
+      doc.text(`Due Date      : ${dueDate ? dueDate.split('-').reverse().join('/') : ''}`, 150, 44 + verticalOffset);
 
       // --- TABLE ---
       y += 12;
-      let tableY = Math.max(y, 55);
+      let tableY = Math.max(y, 55 + verticalOffset);
       // Group services by PO
       const poGroups = {};
       selectedInvoice.services.forEach(service => {
@@ -389,7 +392,18 @@ const Print = () => {
       });
 
       // --- SUBTOTAL, VAT, TOTAL ---
+      // Calculate required space for totals and payment info
+      const paymentSectionExtraOffset = 20; // 2cm
+      const totalsSectionHeight = 8 * 3 + 22; // 3 rows + lines + spacing
+      const paymentSectionHeight = 60; // estimate for payment info and banks
+      const requiredSpace = totalsSectionHeight + paymentSectionHeight + paymentSectionExtraOffset + 10;
       let yAfterTable = doc.lastAutoTable.finalY + 10;
+      let pageHeight = doc.internal.pageSize.getHeight();
+      // If not enough space, add a new page
+      if (yAfterTable + requiredSpace > pageHeight) {
+        doc.addPage();
+        yAfterTable = 20; // top margin for new page
+      }
       const vat = Math.round(subTotal * 0.11);
       const total = subTotal + vat;
       const labelX = 120;
@@ -425,7 +439,10 @@ const Print = () => {
       doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 12, valueX - 10, yAfterTable + rowHeight * 2 + 12);
 
       // --- FOOTER ---
-      let yFooter = yAfterTable + 30;
+      let yFooter = yAfterTable + 30 + paymentSectionExtraOffset;
+      // Draw a horizontal line above the payment section
+      doc.setLineWidth(0.5);
+      doc.line(0, yFooter - 8, 210, yFooter - 8); // A4 width is 210mm
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(11);
       doc.text('All payment should be made in full Amount', 14, yFooter);
@@ -447,6 +464,27 @@ const Print = () => {
           }
         });
       }
+
+      // --- Finance Signature Section ---
+      // Place signature block on the right side, aligned with yBank
+      const signatureX = 150; // right side
+      let signatureY = yFooter + 21; // align with yBank start
+      // Company name (a little space above)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      // doc.text(company ? company.company_name : 'Company Name Not Found', signatureX, signatureY);
+      // signatureY += 16; // space between company name and signature
+      // Nur Liani (underlined)
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(12);
+      doc.text('Nur Liani', signatureX, signatureY, { align: 'left' });
+      // Underline Nur Liani
+      const nameWidth = doc.getTextWidth('Nur Liani');
+      doc.setLineWidth(0.5);
+      doc.line(signatureX, signatureY + 2, signatureX + nameWidth, signatureY + 2);
+      // Finance below underline
+      doc.setFontSize(11);
+      doc.text('Finance', signatureX, signatureY + 10, { align: 'left' });
 
       doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
     } catch (error) {
