@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS invoice_services (
     id INT PRIMARY KEY AUTO_INCREMENT,
     invoice_id INT NOT NULL,
     service_id INT NOT NULL,
-    qty INT NOT NULL,
+    qty DECIMAL(10,2) NOT NULL,
     customer_po VARCHAR(50) NOT NULL UNIQUE,
     company_id INT NOT NULL,
     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
