@@ -392,19 +392,37 @@ const Print = () => {
       let yAfterTable = doc.lastAutoTable.finalY + 10;
       const vat = Math.round(subTotal * 0.11);
       const total = subTotal + vat;
-      const labelX = 150;
-      const valueX = 200; // Move this further right to avoid overlap
+      const labelX = 120;
+      const currencyX = 150;
+      const valueX = 200;
+      const rowHeight = 8;
+      // Draw top line (thinner)
+      doc.setLineWidth(0.3);
+      doc.line(currencyX - 6, yAfterTable - 4, valueX - 10, yAfterTable - 4);
+      // Subtotal row
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.text('Sub Total', labelX, yAfterTable);
-      doc.text('VAT/PPN', labelX, yAfterTable + 7);
+      doc.text('Rp', currencyX, yAfterTable, { align: 'right' });
+      doc.text(subTotal.toLocaleString(), valueX - 20, yAfterTable, { align: 'right' });
+      // VAT/PPN row
+      doc.text('VAT/PPN', labelX, yAfterTable + rowHeight);
+      doc.text('Rp', currencyX, yAfterTable + rowHeight, { align: 'right' });
+      doc.text(vat.toLocaleString(), valueX - 20, yAfterTable + rowHeight, { align: 'right' });
+      // Draw line below VAT/PPN (thinner)
+      doc.setLineWidth(0.3);
+      doc.line(currencyX - 6, yAfterTable + rowHeight + 3, valueX - 10, yAfterTable + rowHeight + 3);
+      // TOTAL row (bold, but smaller font)
       doc.setFont('helvetica', 'bold');
-      doc.text('TOTAL', labelX, yAfterTable + 14);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Rp ${subTotal.toLocaleString()}`, valueX, yAfterTable, { align: 'right' });
-      doc.text(`Rp ${vat.toLocaleString()}`, valueX, yAfterTable + 7, { align: 'right' });
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Rp ${total.toLocaleString()}`, valueX, yAfterTable + 14, { align: 'right' });
+      doc.setFontSize(11);
+      doc.text('TOTAL', labelX, yAfterTable + rowHeight * 2 + 6);
+      doc.text('Rp', currencyX, yAfterTable + rowHeight * 2 + 6, { align: 'right' });
+      doc.text(total.toLocaleString(), valueX - 20, yAfterTable + rowHeight * 2 + 6, { align: 'right' });
+      // Draw double line below TOTAL (thinner)
+      doc.setLineWidth(0.3);
+      doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 10, valueX - 10, yAfterTable + rowHeight * 2 + 10);
+      doc.setLineWidth(0.3);
+      doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 12, valueX - 10, yAfterTable + rowHeight * 2 + 12);
 
       // --- FOOTER ---
       let yFooter = yAfterTable + 30;
