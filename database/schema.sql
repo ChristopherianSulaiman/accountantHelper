@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS companies (
     company_id INT PRIMARY KEY AUTO_INCREMENT,
     company_name VARCHAR(255) NOT NULL,
     company_address TEXT
+    -- phone_number VARCHAR(20),
+    -- fax_number VARCHAR(20)
 );
 
 -- Insert DIGISAT as the default company

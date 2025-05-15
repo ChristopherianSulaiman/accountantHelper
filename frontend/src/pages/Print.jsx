@@ -439,27 +439,51 @@ const Print = () => {
       doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 12, valueX - 10, yAfterTable + rowHeight * 2 + 12);
 
       // --- FOOTER ---
-      let yFooter = yAfterTable + 30 + paymentSectionExtraOffset;
+      let yFooter = yAfterTable + 25 + paymentSectionExtraOffset;
       // Draw a horizontal line above the payment section
       doc.setLineWidth(0.5);
-      doc.line(0, yFooter - 8, 210, yFooter - 8); // A4 width is 210mm
+      doc.line(10, yFooter - 3.5, 200, yFooter - 3.5); // A4 width is 210mm. This is the bottom long line
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(11);
-      doc.text('All payment should be made in full Amount', 14, yFooter);
+      doc.text('All payment should be made in full Amount', 10, yFooter);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
-      doc.text('Make all checks payable to :', 14, yFooter + 7);
-      doc.setFont('helvetica', 'bold');
-      doc.text(company ? company.company_name : 'Company Name Not Found', 14, yFooter + 14);
+      doc.text('Make all checks payable to :', 10, yFooter + 5);
+// Set font to Helvetica Bold
+/*added */
+doc.setFont('helvetica', 'bold');
+
+// Define company name text and position
+const companyNameText = company ? company.company_name : 'Company Name Not Found';
+const companyNameXPosition = 22;
+const companyNameYPosition = yFooter + 13;
+
+// Draw the company name text
+doc.text(companyNameText, companyNameXPosition, companyNameYPosition);
+
+// Calculate text width for underline
+const companyNameTextWidth = doc.getTextWidth(companyNameText);
+const underlineOffsetFromText = 1.5;
+const underlineYPosition = companyNameYPosition + underlineOffsetFromText;
+
+// Draw underline below company name
+doc.line(
+  companyNameXPosition,
+  underlineYPosition - 1,
+  companyNameXPosition + companyNameTextWidth,
+  underlineYPosition - 1
+);
+
+      /*added */
       doc.setFont('helvetica', 'normal');
       let yBank = yFooter + 21;
       if (Array.isArray(banks) && selectedBanks.every(id => banks.some(b => b.bank_id === id))) {
         selectedBanks.forEach((bankId) => {
           const bank = banks.find(b => b.bank_id === bankId);
           if (bank) {
-            doc.text(`Bank ${bank.bank_name} - ${bank.bank_address}`, 14, yBank);
+            doc.text(`Bank ${bank.bank_name} - ${bank.bank_address}`, 10, yBank);
             yBank += 6;
-            doc.text(`A/C # ${bank.acc_number} (${bank.currency})`, 14, yBank);
+            doc.text(`A/C # ${bank.acc_number} (${bank.currency})`, 10, yBank);
             yBank += 7;
           }
         });
@@ -477,14 +501,14 @@ const Print = () => {
       // Nur Liani (underlined)
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
-      doc.text('Nur Liani', signatureX, signatureY, { align: 'left' });
+      doc.text('Nur Liani', signatureX, signatureY +15, { align: 'left' });
       // Underline Nur Liani
       const nameWidth = doc.getTextWidth('Nur Liani');
       doc.setLineWidth(0.5);
-      doc.line(signatureX, signatureY + 2, signatureX + nameWidth, signatureY + 2);
+      doc.line(signatureX, signatureY + 15.5, signatureX + nameWidth, signatureY + 15.5);
       // Finance below underline
       doc.setFontSize(11);
-      doc.text('Finance', signatureX, signatureY + 10, { align: 'left' });
+      doc.text('Finance', signatureX, signatureY + 19, { align: 'left' });
 
       doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
     } catch (error) {
