@@ -290,23 +290,23 @@ const Print = () => {
 
       const doc = new jsPDF('p', 'mm', 'a4');
       
-      // Add 40mm (4cm) vertical offset to shift everything down
-      const verticalOffset = 40;
+      // Add 30mm (3cm) vertical offset to shift everything down (reduced from 40mm)
+      const verticalOffset = 20;
 
       // --- COMPANY INFO TRUE TOP RIGHT ---
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
+      doc.setFont('helvetica');
+      doc.setFontSize(8.5);
       doc.text(company?.company_name || '', 150, 10, { align: 'left' });
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      let companyInfoY = 16;
+      doc.setFontSize(8.5);
+      let companyInfoY = 13;
       if (company?.company_address) {
-        const addressLines = doc.splitTextToSize(company.company_address, 55);
+        const addressLines = doc.splitTextToSize(company.company_address, 45);
         doc.text(addressLines, 150, companyInfoY, { align: 'left' });
-        companyInfoY += addressLines.length * 6;
+        companyInfoY += addressLines.length * 3.3;
       }
       doc.text(`Phone: ${company?.phone_number || '-'}`, 150, companyInfoY, { align: 'left' });
-      companyInfoY += 6;
+      companyInfoY += 3;
       doc.text(`Fax: ${company?.fax_number || '-'}`, 150, companyInfoY, { align: 'left' });
 
       // --- HEADER ---
@@ -327,7 +327,7 @@ const Print = () => {
 
       // Invoice info box
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(32);
+      doc.setFontSize(27);
       doc.text('Invoice', 150, 22 + verticalOffset);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
@@ -404,14 +404,14 @@ const Print = () => {
         },
         bodyStyles: { 
           fontSize: 9,
-          halign: 'center', 
+          halign: 'left', 
           valign: 'middle' 
         },
         columnStyles: {
           0: { cellWidth: 70, halign: 'left' },
-          1: { cellWidth: 40 },
+          1: { cellWidth: 40, halign: 'left' },
           2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 15 },
+          3: { cellWidth: 15, halign: 'center' },
           4: { cellWidth: 35, halign: 'right' },
         },
         styles: { 
@@ -448,7 +448,7 @@ const Print = () => {
       doc.line(currencyX - 6, yAfterTable - 4, valueX - 10, yAfterTable - 4);
       // Subtotal row
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.text('Sub Total', labelX, yAfterTable);
       doc.text('Rp', currencyX, yAfterTable, { align: 'right' });
       doc.text(subTotal.toLocaleString(), valueX - 20, yAfterTable, { align: 'right' });
@@ -461,7 +461,7 @@ const Print = () => {
       doc.line(currencyX - 6, yAfterTable + rowHeight + 3, valueX - 10, yAfterTable + rowHeight + 3);
       // TOTAL row (bold, but smaller font)
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.text('TOTAL', labelX, yAfterTable + rowHeight * 2 + 6);
       doc.text('Rp', currencyX, yAfterTable + rowHeight * 2 + 6, { align: 'right' });
       doc.text(total.toLocaleString(), valueX - 20, yAfterTable + rowHeight * 2 + 6, { align: 'right' });
@@ -477,10 +477,10 @@ const Print = () => {
       doc.setLineWidth(0.5);
       doc.line(10, yFooter - 3.5, 200, yFooter - 3.5); // A4 width is 210mm. This is the bottom long line
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.text('All payment should be made in full Amount', 10, yFooter);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.text('Make all checks payable to :', 10, yFooter + 5);
 // Set font to Helvetica Bold
 /*added */
@@ -533,16 +533,16 @@ doc.line(
       // signatureY += 16; // space between company name and signature
       // Nur Liani (underlined)
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.text('Nur Liani', signatureX, signatureY +15, { align: 'left' });
+      doc.setFontSize(8.7);
+      doc.text('Nur Liani', signatureX + 20, signatureY +15, { align: 'left' });
       // Underline Nur Liani
       const nameWidth = doc.getTextWidth('Nur Liani');
       doc.setLineWidth(0.5);
-      doc.line(signatureX, signatureY + 15.5, signatureX + nameWidth, signatureY + 15.5);
+      doc.line(signatureX + 20, signatureY + 15.5, signatureX + nameWidth + 20, signatureY + 15.5);
       // Finance below underline
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'italic');
-      doc.text('Finance', signatureX, signatureY + 19, { align: 'left' });
+      doc.text('Finance', signatureX + 20, signatureY + 19, { align: 'left' });
 
       doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
     } catch (error) {
