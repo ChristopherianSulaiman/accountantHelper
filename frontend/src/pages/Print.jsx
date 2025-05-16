@@ -290,6 +290,22 @@ const Print = () => {
       // Add 40mm (4cm) vertical offset to shift everything down
       const verticalOffset = 40;
 
+      // --- COMPANY INFO TRUE TOP RIGHT ---
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(company?.company_name || '', 150, 10, { align: 'left' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      let companyInfoY = 16;
+      if (company?.company_address) {
+        const addressLines = doc.splitTextToSize(company.company_address, 55);
+        doc.text(addressLines, 150, companyInfoY, { align: 'left' });
+        companyInfoY += addressLines.length * 6;
+      }
+      doc.text(`Phone: ${company?.phone_number || '-'}`, 150, companyInfoY, { align: 'left' });
+      companyInfoY += 6;
+      doc.text(`Fax: ${company?.fax_number || '-'}`, 150, companyInfoY, { align: 'left' });
+
       // --- HEADER ---
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
