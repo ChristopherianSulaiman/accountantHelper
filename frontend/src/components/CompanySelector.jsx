@@ -12,7 +12,7 @@ const CompanySelector = () => {
   const [newDialog, setNewDialog] = useState(false);
   const [editDialog, setEditDialog] = useState({ open: false, company: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, company: null });
-  const [form, setForm] = useState({ name: '', address: '' });
+  const [form, setForm] = useState({ name: '', address: '', phone: '', fax: '' });
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,8 +35,16 @@ const CompanySelector = () => {
   };
 
   // --- CRUD Handlers ---
-  const openNewDialog = () => { setForm({ name: '', address: '' }); setNewDialog(true); };
-  const openEditDialog = (c) => { setForm({ name: c.company_name, address: c.company_address }); setEditDialog({ open: true, company: c }); };
+  const openNewDialog = () => { setForm({ name: '', address: '', phone: '', fax: '' }); setNewDialog(true); };
+  const openEditDialog = (c) => { 
+    setForm({ 
+      name: c.company_name, 
+      address: c.company_address,
+      phone: c.phone_number || '',
+      fax: c.fax_number || ''
+    }); 
+    setEditDialog({ open: true, company: c }); 
+  };
   const openDeleteDialog = (c) => { setDeleteDialog({ open: true, company: c }); };
 
   const handleCreate = async (e) => {
@@ -45,13 +53,21 @@ const CompanySelector = () => {
     try {
       const res = await axios.post('http://localhost:3000/api/companies', {
         company_name: form.name,
-        company_address: form.address
+        company_address: form.address,
+        phone_number: form.phone,
+        fax_number: form.fax
       });
       await fetchCompanies();
-      const created = res.data.company || (res.data.company_id && { company_id: res.data.company_id, company_name: form.name, company_address: form.address });
+      const created = res.data.company || (res.data.company_id && { 
+        company_id: res.data.company_id, 
+        company_name: form.name, 
+        company_address: form.address,
+        phone_number: form.phone,
+        fax_number: form.fax
+      });
       if (created) setCompany(created);
       setNewDialog(false);
-      setForm({ name: '', address: '' });
+      setForm({ name: '', address: '', phone: '', fax: '' });
     } catch (err) {} finally { setCreating(false); }
   };
 
@@ -61,11 +77,19 @@ const CompanySelector = () => {
     try {
       await axios.put(`http://localhost:3000/api/companies/${editDialog.company.company_id}`, {
         company_name: form.name,
-        company_address: form.address
+        company_address: form.address,
+        phone_number: form.phone,
+        fax_number: form.fax
       });
       await fetchCompanies();
       if (company && company.company_id === editDialog.company.company_id) {
-        setCompany({ ...company, company_name: form.name, company_address: form.address });
+        setCompany({ 
+          ...company, 
+          company_name: form.name, 
+          company_address: form.address,
+          phone_number: form.phone,
+          fax_number: form.fax
+        });
       }
       setEditDialog({ open: false, company: null });
     } catch (err) {} finally { setEditing(false); }
@@ -135,7 +159,16 @@ const CompanySelector = () => {
                   <IconButton size="small" color="error" onClick={() => openDeleteDialog(c)}><DeleteIcon fontSize="small" /></IconButton>
                 </>
               }>
-                <ListItemText primary={c.company_name} secondary={c.company_address} />
+                <ListItemText 
+                  primary={c.company_name} 
+                  secondary={
+                    <>
+                      {c.company_address && <div>{c.company_address}</div>}
+                      {c.phone_number && <div>Phone: {c.phone_number}</div>}
+                      {c.fax_number && <div>Fax: {c.fax_number}</div>}
+                    </>
+                  } 
+                />
               </ListItem>
             ))}
           </List>
@@ -143,7 +176,7 @@ const CompanySelector = () => {
             variant="contained"
             fullWidth
             sx={{ mt: 2 }}
-            onClick={() => { console.log('Add New Company button clicked'); setNewDialog(true); }}
+            onClick={() => { setNewDialog(true); }}
           >
             + Add New Company
           </Button>
@@ -170,6 +203,20 @@ const CompanySelector = () => {
               required
               multiline
               rows={2}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Phone Number"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              fullWidth
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Fax Number"
+              value={form.fax}
+              onChange={e => setForm({ ...form, fax: e.target.value })}
+              fullWidth
             />
           </DialogContent>
           <DialogActions>
@@ -201,6 +248,20 @@ const CompanySelector = () => {
               required
               multiline
               rows={2}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Phone Number"
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              fullWidth
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Fax Number"
+              value={form.fax}
+              onChange={e => setForm({ ...form, fax: e.target.value })}
+              fullWidth
             />
           </DialogContent>
           <DialogActions>

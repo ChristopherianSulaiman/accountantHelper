@@ -710,19 +710,21 @@ app.get('/api/companies', async (req, res) => {
 
 // POST /api/companies - create a new company
 app.post('/api/companies', async (req, res) => {
-  const { company_name, company_address } = req.body;
+  const { company_name, company_address, phone_number, fax_number } = req.body;
   if (!company_name) return res.status(400).json({ message: 'company_name is required' });
   try {
     const [result] = await pool.execute(
-      'INSERT INTO companies (company_name, company_address) VALUES (?, ?)',
-      [company_name, company_address || '']
+      'INSERT INTO companies (company_name, company_address, phone_number, fax_number) VALUES (?, ?, ?, ?)',
+      [company_name, company_address || '', phone_number || '', fax_number || '']
     );
     res.status(201).json({
       company_id: result.insertId,
       company: {
         company_id: result.insertId,
         company_name,
-        company_address: company_address || ''
+        company_address: company_address || '',
+        phone_number: phone_number || '',
+        fax_number: fax_number || ''
       }
     });
   } catch (error) {
@@ -734,19 +736,25 @@ app.post('/api/companies', async (req, res) => {
 // PUT /api/companies/:id - update a company
 app.put('/api/companies/:id', async (req, res) => {
   const { id } = req.params;
-  const { company_name, company_address } = req.body;
+  const { company_name, company_address, phone_number, fax_number } = req.body;
   if (!company_name) return res.status(400).json({ message: 'company_name is required' });
   try {
     const [result] = await pool.execute(
-      'UPDATE companies SET company_name = ?, company_address = ? WHERE company_id = ?',
-      [company_name, company_address || '', id]
+      'UPDATE companies SET company_name = ?, company_address = ?, phone_number = ?, fax_number = ? WHERE company_id = ?',
+      [company_name, company_address || '', phone_number || '', fax_number || '', id]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Company not found' });
     }
     res.json({
       message: 'Company updated successfully',
-      company: { company_id: id, company_name, company_address: company_address || '' }
+      company: { 
+        company_id: id, 
+        company_name, 
+        company_address: company_address || '',
+        phone_number: phone_number || '',
+        fax_number: fax_number || ''
+      }
     });
   } catch (error) {
     console.error('Error updating company:', error);

@@ -7,14 +7,14 @@ USE fullstack_app;
 CREATE TABLE IF NOT EXISTS companies (
     company_id INT PRIMARY KEY AUTO_INCREMENT,
     company_name VARCHAR(255) NOT NULL,
-    company_address TEXT
-    -- phone_number VARCHAR(20),
-    -- fax_number VARCHAR(20)
+    company_address TEXT,
+    phone_number VARCHAR(20),
+    fax_number VARCHAR(20)
 );
 
 -- Insert DIGISAT as the default company
-INSERT INTO companies (company_name, company_address)
-VALUES ('DIGISAT', 'Default Address for DIGISAT');
+INSERT INTO companies (company_name, company_address, phone_number, fax_number)
+VALUES ('DIGISAT', 'Default Address for DIGISAT', '+62 21 5221908', '+62 21 5260617');
 
 -- Customer Table
 CREATE TABLE IF NOT EXISTS customers (
