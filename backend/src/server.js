@@ -497,12 +497,12 @@ app.get('/api/customers', async (req, res) => {
 
 // Create customer endpoint
 app.post('/api/customers', async (req, res) => {
-  const { cust_name, cust_address, company_id } = req.body;
+  const { cust_name, cust_address, email, phone_number, company_id } = req.body;
   if (!company_id) return res.status(400).json({ message: 'company_id is required' });
   try {
     const [result] = await pool.execute(
-      'INSERT INTO customers (cust_name, cust_address, company_id) VALUES (?, ?, ?)',
-      [cust_name, cust_address, company_id]
+      'INSERT INTO customers (cust_name, cust_address, email, phone_number, company_id) VALUES (?, ?, ?, ?, ?)',
+      [cust_name, cust_address, email, phone_number, company_id]
     );
     res.status(201).json({
       message: 'Customer created successfully',
@@ -518,11 +518,11 @@ app.post('/api/customers', async (req, res) => {
 app.put('/api/customers/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { cust_name, cust_address } = req.body;
+    const { cust_name, cust_address, email, phone_number } = req.body;
     
     const [result] = await pool.execute(
-      'UPDATE customers SET cust_name = ?, cust_address = ? WHERE cust_id = ?',
-      [cust_name, cust_address, id]
+      'UPDATE customers SET cust_name = ?, cust_address = ?, email = ?, phone_number = ? WHERE cust_id = ?',
+      [cust_name, cust_address, email, phone_number, id]
     );
 
     if (result.affectedRows === 0) {

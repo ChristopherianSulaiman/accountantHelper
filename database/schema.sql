@@ -14,13 +14,15 @@ CREATE TABLE IF NOT EXISTS companies (
 
 -- Insert DIGISAT as the default company
 INSERT INTO companies (company_name, company_address, phone_number, fax_number)
-VALUES ('DIGISAT', 'Default Address for DIGISAT', '+62 21 5221908', '+62 21 5260617');
+VALUES ('DIGISAT', 'Cyber building 7th Floor Jl. Kuningan Barat No. 8 Mampang Prapatan, Jkarta - INDONESIA 12710', '+62 21 5221908', '+62 21 5260617');
 
 -- Customer Table
 CREATE TABLE IF NOT EXISTS customers (
     cust_id INT PRIMARY KEY AUTO_INCREMENT,
     cust_name VARCHAR(255) NOT NULL,
     cust_address TEXT NOT NULL,
+    email VARCHAR(255),
+    phone_number VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     company_id INT NOT NULL,

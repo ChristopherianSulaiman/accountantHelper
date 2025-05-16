@@ -296,23 +296,23 @@ const Print = () => {
       // --- COMPANY INFO TRUE TOP RIGHT ---
       doc.setFont('helvetica');
       doc.setFontSize(8.5);
-      doc.text(company?.company_name || '', 150, 10, { align: 'left' });
+      doc.text(company?.company_name || '', 160, 10, { align: 'left' });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       let companyInfoY = 13;
       if (company?.company_address) {
         const addressLines = doc.splitTextToSize(company.company_address, 45);
-        doc.text(addressLines, 150, companyInfoY, { align: 'left' });
+        doc.text(addressLines, 160, companyInfoY, { align: 'left' });
         companyInfoY += addressLines.length * 3.3;
       }
-      doc.text(`Phone: ${company?.phone_number || '-'}`, 150, companyInfoY, { align: 'left' });
+      doc.text(`Phone: ${company?.phone_number || '-'}`, 160, companyInfoY, { align: 'left' });
       companyInfoY += 3;
-      doc.text(`Fax: ${company?.fax_number || '-'}`, 150, companyInfoY, { align: 'left' });
+      doc.text(`Fax: ${company?.fax_number || '-'}`, 160, companyInfoY, { align: 'left' });
 
       // --- HEADER ---
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text('Billed To :', 14, 18 + verticalOffset);
+      // doc.setFontSize(12);
+      // doc.text('Billed To :', 14, 18 + verticalOffset);
       doc.setFontSize(13);
       doc.text((customer.cust_name || '').toUpperCase(), 14, 25 + verticalOffset);
       doc.setFont('helvetica', 'normal');

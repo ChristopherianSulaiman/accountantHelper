@@ -38,68 +38,48 @@ import {
   Search as SearchIcon,
   LocationOn as LocationIcon,
   Event as EventIcon,
-  Business as BusinessIcon
+  Business as BusinessIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useCompany } from '../components/CompanyContext';
 
 // Customer row component for expandable rows
 const CustomerRow = ({ customer, onEdit, onDelete }) => {
-  const [open, setOpen] = useState(false);
-
   return (
-    <>
-      <TableRow sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
-        <TableCell>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PersonIcon fontSize="small" color="action" />
-            <Typography variant="body2" fontWeight="medium">{customer.cust_name}</Typography>
-          </Box>
-        </TableCell>
-        <TableCell>{customer.cust_address}</TableCell>
-        <TableCell>
-          <IconButton color="primary" size="small" onClick={() => onEdit(customer)}>
-            <EditIcon />
-          </IconButton>
-          <IconButton color="error" size="small" onClick={() => onDelete(customer)}>
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1, py: 2 }}>
-              <Typography variant="h6" gutterBottom component="div" color="primary">
-                Additional Details
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EventIcon fontSize="small" color="action" />
-                    <strong>Created:</strong> {new Date(customer.created_at).toLocaleDateString()}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <EventIcon fontSize="small" color="action" />
-                    <strong>Last Updated:</strong> {new Date(customer.updated_at).toLocaleDateString()}
-                  </Typography>
-                </Grid>
-              </Grid>
+    <TableRow sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+      <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon fontSize="small" color="action" />
+          <Typography variant="body2" fontWeight="medium">{customer.cust_name}</Typography>
+        </Box>
+      </TableCell>
+      <TableCell>{customer.cust_address}</TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {customer.email && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <EmailIcon fontSize="small" color="action" />
+              <Typography variant="body2">{customer.email}</Typography>
             </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
+          )}
+          {customer.phone_number && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <PhoneIcon fontSize="small" color="action" />
+              <Typography variant="body2">{customer.phone_number}</Typography>
+            </Box>
+          )}
+        </Box>
+      </TableCell>
+      <TableCell>
+        <IconButton color="primary" size="small" onClick={() => onEdit(customer)}>
+          <EditIcon />
+        </IconButton>
+        <IconButton color="error" size="small" onClick={() => onDelete(customer)}>
+          <DeleteIcon />
+        </IconButton>
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -114,7 +94,9 @@ const Customers = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: '',
-    customer_address: ''
+    customer_address: '',
+    email: '',
+    phone_number: ''
   });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -145,6 +127,8 @@ const Customers = () => {
         await axios.put(`http://localhost:3000/api/customers/${editingCustomer.cust_id}`, {
           cust_name: formData.customer_name,
           cust_address: formData.customer_address,
+          email: formData.email,
+          phone_number: formData.phone_number,
           company_id: company.company_id
         });
       } else {
@@ -152,13 +136,17 @@ const Customers = () => {
         await axios.post('http://localhost:3000/api/customers', {
           cust_name: formData.customer_name,
           cust_address: formData.customer_address,
+          email: formData.email,
+          phone_number: formData.phone_number,
           company_id: company.company_id
         });
       }
       setShowForm(false);
       setFormData({
         customer_name: '',
-        customer_address: ''
+        customer_address: '',
+        email: '',
+        phone_number: ''
       });
       setEditingCustomer(null);
       fetchCustomers();
@@ -178,7 +166,9 @@ const Customers = () => {
     setEditingCustomer(customer);
     setFormData({
       customer_name: customer.cust_name,
-      customer_address: customer.cust_address
+      customer_address: customer.cust_address,
+      email: customer.email || '',
+      phone_number: customer.phone_number || ''
     });
     setShowForm(true);
   };
@@ -208,7 +198,9 @@ const Customers = () => {
     setEditingCustomer(null);
     setFormData({
       customer_name: '',
-      customer_address: ''
+      customer_address: '',
+      email: '',
+      phone_number: ''
     });
   };
 
@@ -248,7 +240,9 @@ const Customers = () => {
             setEditingCustomer(null);
             setFormData({
               customer_name: '',
-              customer_address: ''
+              customer_address: '',
+              email: '',
+              phone_number: ''
             });
             setShowForm(!showForm);
           }}
@@ -306,6 +300,39 @@ const Customers = () => {
                     startAdornment: (
                       <InputAdornment position="start">
                         <PersonIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon color="action" />
                       </InputAdornment>
                     ),
                   }}
@@ -385,9 +412,9 @@ const Customers = () => {
             <Table>
               <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell />
                   <TableCell sx={{ fontWeight: 'bold' }}>Customer Name</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Address</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Contact Info</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
