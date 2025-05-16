@@ -436,7 +436,7 @@ const Print = () => {
       doc.setLineWidth(0.3);
       doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 10, valueX - 10, yAfterTable + rowHeight * 2 + 10);
       doc.setLineWidth(0.3);
-      doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 12, valueX - 10, yAfterTable + rowHeight * 2 + 12);
+      doc.line(currencyX - 6, yAfterTable + rowHeight * 2 + 10.5, valueX - 10, yAfterTable + rowHeight * 2 + 10.5);
 
       // --- FOOTER ---
       let yFooter = yAfterTable + 25 + paymentSectionExtraOffset;
