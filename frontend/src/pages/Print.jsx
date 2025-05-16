@@ -508,6 +508,7 @@ doc.line(
       doc.line(signatureX, signatureY + 15.5, signatureX + nameWidth, signatureY + 15.5);
       // Finance below underline
       doc.setFontSize(11);
+      doc.setFont('helvetica', 'italic');
       doc.text('Finance', signatureX, signatureY + 19, { align: 'left' });
 
       doc.save(`invoice_${selectedInvoice.invoice_number}.pdf`);
