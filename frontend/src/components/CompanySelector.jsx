@@ -126,7 +126,15 @@ const CompanySelector = () => {
             label="Company"
             onChange={e => {
               const selected = companies.find(c => c.company_id === e.target.value);
-              setCompany(selected);
+              if (selected) {
+                setCompany({
+                  company_id: selected.company_id,
+                  company_name: selected.company_name,
+                  company_address: selected.company_address,
+                  phone_number: selected.phone_number || '',
+                  fax_number: selected.fax_number || ''
+                });
+              }
             }}
             renderValue={selected => {
               const c = companies.find(c => c.company_id === selected);

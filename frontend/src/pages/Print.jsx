@@ -285,6 +285,9 @@ const Print = () => {
         return;
       }
 
+      // DEBUG: Log company object before generating PDF
+      console.log('Company object used for PDF:', company);
+
       const doc = new jsPDF('p', 'mm', 'a4');
       
       // Add 40mm (4cm) vertical offset to shift everything down

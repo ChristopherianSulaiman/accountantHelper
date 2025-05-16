@@ -12,7 +12,22 @@ export function CompanyProvider({ children }) {
   useEffect(() => {
     // Load from localStorage on mount
     const stored = localStorage.getItem('selectedCompany');
-    if (stored) setCompany(JSON.parse(stored));
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // If missing phone/fax, fetch from backend
+      if (!parsed.phone_number || !parsed.fax_number) {
+        fetch(`http://localhost:3000/api/companies`)
+          .then(res => res.json())
+          .then(companies => {
+            const found = companies.find(c => c.company_id === parsed.company_id);
+            if (found) setCompany(found);
+            else setCompany(parsed);
+          })
+          .catch(() => setCompany(parsed));
+      } else {
+        setCompany(parsed);
+      }
+    }
   }, []);
 
   useEffect(() => {
