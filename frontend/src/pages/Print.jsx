@@ -375,17 +375,31 @@ const Print = () => {
         startY: tableY,
         head: tableHead,
         body: tableRows,
-        theme: 'grid',
-        headStyles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' },
-        bodyStyles: { fontSize: 11, halign: 'left', valign: 'middle' },
+        theme: 'plain',
+        headStyles: { 
+          fillColor: [255, 242, 0], 
+          textColor: [0,0,0], 
+          fontStyle: 'bold', 
+          halign: 'center',
+          fontSize: 10
+        },
+        bodyStyles: { 
+          fontSize: 9,
+          halign: 'center', 
+          valign: 'middle' 
+        },
         columnStyles: {
-          0: { cellWidth: 70 },
+          0: { cellWidth: 70, halign: 'left' },
           1: { cellWidth: 40 },
           2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 15, halign: 'right' },
+          3: { cellWidth: 15 },
           4: { cellWidth: 35, halign: 'right' },
         },
-        styles: { cellPadding: 2, font: 'helvetica' },
+        styles: { 
+          cellPadding: 2, 
+          font: 'helvetica',
+          lineWidth: 0
+        },
         didDrawPage: (data) => {
           // nothing
         },
