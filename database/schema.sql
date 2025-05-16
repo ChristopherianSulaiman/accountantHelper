@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS companies (
 
 -- Insert DIGISAT as the default company
 INSERT INTO companies (company_name, company_address, phone_number, fax_number)
-VALUES ('DIGISAT', 'Cyber building 7th Floor Jl. Kuningan Barat No. 8 Mampang Prapatan, Jkarta - INDONESIA 12710', '+62 21 5221908', '+62 21 5260617');
+VALUES ('PT. Digital Satellite Indonesia', 'Cyber building 7th Floor Jl. Kuningan Barat No. 8 Mampang Prapatan, Jkarta - INDONESIA 12710', '+62 21 5221908', '+62 21 5260617');
 
 -- Customer Table
 CREATE TABLE IF NOT EXISTS customers (
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS invoice_services (
     invoice_id INT NOT NULL,
     service_id INT NOT NULL,
     qty DECIMAL(10,2) NOT NULL,
-    customer_po VARCHAR(50) NOT NULL UNIQUE,
+    customer_po VARCHAR(50) NOT NULL,
     company_id INT NOT NULL,
     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
     FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
