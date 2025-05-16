@@ -385,9 +385,9 @@ const Print = () => {
       const tableHead = [[
         { content: 'Description', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
         { content: 'Period', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-        { content: 'Unit Price', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-        { content: 'Qty', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
-        { content: 'Amount', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Unit Price', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' } },
+        { content: 'Qty', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' } },
+        { content: 'Amount', styles: { fillColor: [255, 242, 0], textColor: [0,0,0], fontStyle: 'bold', halign: 'center' } },
       ]];
 
       autoTable(doc, {
@@ -410,9 +410,9 @@ const Print = () => {
         columnStyles: {
           0: { cellWidth: 70, halign: 'left' },
           1: { cellWidth: 40, halign: 'left' },
-          2: { cellWidth: 30, halign: 'right' },
+          2: { cellWidth: 30, halign: 'center' },
           3: { cellWidth: 15, halign: 'center' },
-          4: { cellWidth: 35, halign: 'right' },
+          4: { cellWidth: 35, halign: 'center' },
         },
         styles: { 
           cellPadding: 2, 
