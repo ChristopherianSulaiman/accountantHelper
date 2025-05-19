@@ -484,7 +484,7 @@ const Print = () => {
       doc.text('Make all checks payable to :', 10, yFooter + 5);
 // Set font to Helvetica Bold
 /*added */
-doc.setFont('helvetica', 'bold');
+      doc.setFont('helvetica', 'bold');
 
 // Define company name text and position
 const companyNameText = company ? company.company_name : 'Company Name Not Found';
