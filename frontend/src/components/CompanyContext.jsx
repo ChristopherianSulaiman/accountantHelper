@@ -16,7 +16,8 @@ export function CompanyProvider({ children }) {
       const parsed = JSON.parse(stored);
       // If missing phone/fax, fetch from backend
       if (!parsed.phone_number || !parsed.fax_number) {
-        fetch(`http://localhost:3000/api/companies`)
+        // fetch(`http://localhost:3000/api/companies`)
+          fetch(`${API_BASE_URL}/api/companies`)
           .then(res => res.json())
           .then(companies => {
             const found = companies.find(c => c.company_id === parsed.company_id);

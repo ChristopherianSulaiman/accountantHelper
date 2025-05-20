@@ -93,7 +93,7 @@ const Print = () => {
   const fetchInvoices = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/invoices?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/invoices?company_id=${company.company_id}`);
       setInvoices(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       setInvoices([]);
@@ -106,7 +106,7 @@ const Print = () => {
   const fetchCustomers = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
       setCustomers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       setCustomers([]);
@@ -117,7 +117,7 @@ const Print = () => {
   const fetchBanks = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/banks?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/banks?company_id=${company.company_id}`);
       setBanks(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       setBanks([]);
@@ -133,7 +133,7 @@ const Print = () => {
       // Try to fetch customer by ID first
       if (invoice.cust_id) {
         try {
-          const customerRes = await axios.get(`http://localhost:3000/api/customers/${invoice.cust_id}?company_id=${company.company_id}`);
+          const customerRes = await axios.get(`${API_BASE_URL}/api/customers/${invoice.cust_id}?company_id=${company.company_id}`);
           if (customerRes.data) {
             customerData = customerRes.data;
           }
@@ -145,7 +145,7 @@ const Print = () => {
       // If customer not found by ID, try to find by name
       if (!customerData && invoice.cust_name) {
         try {
-          const allCustomersRes = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+          const allCustomersRes = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
           if (Array.isArray(allCustomersRes.data)) {
             customerData = allCustomersRes.data.find(c => c.cust_name === invoice.cust_name);
           }
@@ -164,7 +164,7 @@ const Print = () => {
       // Fetch services if needed
       if (invoice.service_id) {
         try {
-          const serviceRes = await axios.get(`http://localhost:3000/api/services/${invoice.service_id}?company_id=${company.company_id}`);
+          const serviceRes = await axios.get(`${API_BASE_URL}/api/services/${invoice.service_id}?company_id=${company.company_id}`);
           if (serviceRes.data) {
             serviceData = serviceRes.data;
           }
@@ -175,7 +175,7 @@ const Print = () => {
 
       if (!serviceData && invoice.service_name) {
         try {
-          const allServicesRes = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+          const allServicesRes = await axios.get(`${API_BASE_URL}/api/services?company_id=${company.company_id}`);
           if (Array.isArray(allServicesRes.data)) {
             serviceData = allServicesRes.data.find(s => s.service_name === invoice.service_name);
           }

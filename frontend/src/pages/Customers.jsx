@@ -108,7 +108,7 @@ const Customers = () => {
   const fetchCustomers = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
       setError(null);
     } catch (error) {
@@ -124,7 +124,7 @@ const Customers = () => {
     try {
       if (editingCustomer) {
         // Update existing customer
-        await axios.put(`http://localhost:3000/api/customers/${editingCustomer.cust_id}`, {
+        await axios.put(`${API_BASE_URL}/api/customers/${editingCustomer.cust_id}`, {
           cust_name: formData.customer_name,
           cust_address: formData.customer_address,
           email: formData.email,
@@ -133,7 +133,7 @@ const Customers = () => {
         });
       } else {
         // Create new customer
-        await axios.post('http://localhost:3000/api/customers', {
+        await axios.post(`${API_BASE_URL}/api/customers`, {
           cust_name: formData.customer_name,
           cust_address: formData.customer_address,
           email: formData.email,
@@ -181,7 +181,7 @@ const Customers = () => {
   const handleDeleteConfirm = async () => {
     if (!customerToDelete) return;
     try {
-      await axios.delete(`http://localhost:3000/api/customers/${customerToDelete.cust_id}`);
+      await axios.delete(`${API_BASE_URL}/api/customers/${customerToDelete.cust_id}`);
       setDeleteDialogOpen(false);
       setCustomerToDelete(null);
       fetchCustomers();

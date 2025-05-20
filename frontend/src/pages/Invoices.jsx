@@ -91,7 +91,7 @@ const Invoices = () => {
   const fetchInvoices = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/invoices?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/invoices?company_id=${company.company_id}`);
       setInvoices(response.data);
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -104,7 +104,7 @@ const Invoices = () => {
   const fetchCustomers = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -115,7 +115,7 @@ const Invoices = () => {
   const fetchAllServices = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/services?company_id=${company.company_id}`);
       setAllServices(response.data);
     } catch (error) {
       console.error('Error fetching all services:', error);
@@ -129,7 +129,7 @@ const Invoices = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      await axios.delete(`http://localhost:3000/api/invoices/${invoiceToDelete.invoice_id}?company_id=${company.company_id}`);
+      await axios.delete(`${API_BASE_URL}/api/invoices/${invoiceToDelete.invoice_id}?company_id=${company.company_id}`);
       setDeleteDialogOpen(false);
       setInvoiceToDelete(null);
       fetchInvoices();

@@ -122,7 +122,7 @@ const NewInvoice = () => {
   useEffect(() => {
     // Fetch customers
     if (!company) return;
-    fetch(`http://localhost:3000/api/customers?company_id=${company.company_id}`)
+    fetch(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`)
       .then(res => res.json())
       .then(setCustomers);
   }, [company]);
@@ -133,7 +133,7 @@ const NewInvoice = () => {
       setServices([]);
       return;
     }
-    fetch(`http://localhost:3000/api/services?company_id=${company.company_id}`)
+    fetch(`${API_BASE_URL}/api/services?company_id=${company.company_id}`)
       .then(res => res.json())
       .then(data => setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer))));
   }, [company, selectedCustomer]);
@@ -222,7 +222,7 @@ const NewInvoice = () => {
       }
     }
     try {
-      const response = await fetch('http://localhost:3000/api/invoices', {
+      const response = await fetch(`${API_BASE_URL}/api/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -188,7 +188,7 @@ const Services = () => {
   const fetchServices = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/services?company_id=${company.company_id}`);
       setServices(response.data);
     } catch (error) {
       setError('Failed to load services. Please try again later.');
@@ -200,7 +200,7 @@ const Services = () => {
   const fetchCustomers = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
       setCustomers(response.data);
     } catch (error) {
       setError('Failed to load customers. Please try again.');
@@ -218,7 +218,7 @@ const Services = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/api/services', { ...formData, company_id: company.company_id });
+      await axios.post(`${API_BASE_URL}/api/services`, { ...formData, company_id: company.company_id });
       setShowForm(false);
       setFormData({
         service_type: '',
@@ -239,7 +239,7 @@ const Services = () => {
   const handleDelete = async (serviceId) => {
     if (window.confirm('Are you sure you want to delete this service? This will also delete all related invoices.')) {
       try {
-        await axios.delete(`http://localhost:3000/api/services/${serviceId}`, { data: { company_id: company.company_id } });
+        await axios.delete(`${API_BASE_URL}/api/services/${serviceId}`, { data: { company_id: company.company_id } });
         fetchServices(); // Refresh the services list
       } catch (error) {
         console.error('Error deleting service:', error);

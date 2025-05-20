@@ -50,7 +50,7 @@ const EditService = () => {
     // Fetch customers
     const fetchCustomers = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
         setCustomers(response.data);
       } catch (error) {
         setError('Failed to load customers. Please try again.');
@@ -61,7 +61,7 @@ const EditService = () => {
     // Fetch service data
     const fetchService = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/services/${id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/services/${id}`);
         const data = response.data;
         setFormData({
           service_type: data.service_type,
@@ -92,7 +92,7 @@ const EditService = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:3000/api/services/${id}`, {
+      await axios.put(`${API_BASE_URL}/api/services/${id}`, {
         ...formData,
         company_id: company.company_id
       });

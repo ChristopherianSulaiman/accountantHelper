@@ -54,7 +54,7 @@ const EditInvoice = () => {
     // Fetch customers
     const fetchCustomers = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/customers?company_id=${company.company_id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/customers?company_id=${company.company_id}`);
         setCustomers(response.data);
       } catch (error) {
         setError('Failed to load customers. Please try again.');
@@ -69,7 +69,7 @@ const EditInvoice = () => {
     async function fetchInvoice() {
       setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:3000/api/invoices/${id}?company_id=${company.company_id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/invoices/${id}?company_id=${company.company_id}`);
         const data = response.data;
         setInvoiceNumber(data.invoice_number);
         setSelectedCustomer(data.cust_id);
@@ -97,7 +97,7 @@ const EditInvoice = () => {
     const fetchServices = async () => {
       setServicesLoaded(false);
       try {
-        const response = await axios.get(`http://localhost:3000/api/services?company_id=${company.company_id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/services?company_id=${company.company_id}`);
         const data = response.data;
         setServices(data.filter(s => String(s.cust_id) === String(selectedCustomer)));
         setServicesLoaded(true);
@@ -191,7 +191,7 @@ const EditInvoice = () => {
       }
     }
     try {
-      const response = await axios.put(`http://localhost:3000/api/invoices/${id}?company_id=${company.company_id}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/invoices/${id}?company_id=${company.company_id}`, {
         invoice_number: invoiceNumber,
         cust_id: selectedCustomer,
         status,

@@ -25,7 +25,8 @@ const CompanySelector = () => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/companies');
+      // const res = await axios.get('http://localhost:3000/api/companies');
+      const res = await axios.get(`${API_BASE_URL}/api/companies`);
       setCompanies(res.data);
     } catch (err) {
       setCompanies([]);
@@ -51,7 +52,7 @@ const CompanySelector = () => {
     e.preventDefault();
     setCreating(true);
     try {
-      const res = await axios.post('http://localhost:3000/api/companies', {
+      const res = await axios.post(`${API_BASE_URL}/api/companies`, {
         company_name: form.name,
         company_address: form.address,
         phone_number: form.phone,
@@ -75,7 +76,7 @@ const CompanySelector = () => {
     e.preventDefault();
     setEditing(true);
     try {
-      await axios.put(`http://localhost:3000/api/companies/${editDialog.company.company_id}`, {
+      await axios.put(`${API_BASE_URL}/api/companies/${editDialog.company.company_id}`, {
         company_name: form.name,
         company_address: form.address,
         phone_number: form.phone,
@@ -99,7 +100,7 @@ const CompanySelector = () => {
     setDeleting(true);
     try {
       console.log('Deleting company:', deleteDialog.company?.company_id);
-      await axios.delete(`http://localhost:3000/api/companies/${deleteDialog.company.company_id}`);
+      await axios.delete(`${API_BASE_URL}/api/companies/${deleteDialog.company.company_id}`);
       await fetchCompanies();
       if (company && company.company_id === deleteDialog.company.company_id) {
         setCompany(null);

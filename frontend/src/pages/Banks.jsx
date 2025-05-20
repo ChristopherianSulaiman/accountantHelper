@@ -166,7 +166,7 @@ const Banks = () => {
   const fetchBanks = async () => {
     if (!company) return;
     try {
-      const response = await axios.get(`http://localhost:3000/api/banks?company_id=${company.company_id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/banks?company_id=${company.company_id}`);
       setBanks(response.data);
     } catch (error) {
       setError('Failed to load banks. Please try again.');
@@ -181,13 +181,13 @@ const Banks = () => {
     try {
       if (editingBank) {
         // Update existing bank
-        await axios.put(`http://localhost:3000/api/banks/${editingBank.bank_id}`, {
+        await axios.put(`${API_BASE_URL}/api/banks/${editingBank.bank_id}`, {
           ...formData,
           company_id: company.company_id
         });
       } else {
         // Create new bank
-        await axios.post('http://localhost:3000/api/banks', {
+        await axios.post(`${API_BASE_URL}/api/banks`, {
           ...formData,
           company_id: company.company_id
         });
@@ -255,7 +255,7 @@ const Banks = () => {
   const confirmDelete = async () => {
     if (!bankToDelete) return;
     try {
-      await axios.delete(`http://localhost:3000/api/banks/${bankToDelete.bank_id}`);
+      await axios.delete(`${API_BASE_URL}/api/banks/${bankToDelete.bank_id}`);
       setDeleteDialogOpen(false);
       setBankToDelete(null);
       fetchBanks();
